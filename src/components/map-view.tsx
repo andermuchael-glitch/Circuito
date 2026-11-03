@@ -280,15 +280,31 @@ export function MapView() {
 
     const fitRoute = () => {
       fitted.current = state.fitToken;
-      if (spots.length >= 2) {
-        map.fitBounds(L.latLngBounds(spots).pad(0.28), {
-          animate: !reduced,
-          paddingTopLeft: [24, 120],
-          paddingBottomRight: [24, 160],
-        });
-      } else if (spots.length === 1) {
-        map.setView(spots[0], 16);
+      // Avoid Leaflet/MapLibre fitBounds edge cases on Android WebView.
+      // Compute a safe center/zoom from validated coordinates instead.
+      const validSpots = spots.filter(
+        ([lat, lng]) =>
+          Number.isFinite(lat) &&
+          Number.isFinite(lng) &&
+          Math.abs(lat) <= 90 &&
+          Math.abs(lng) <= 180,
+      );
+      if (!validSpots.length) return;
+      if (validSpots.length === 1) {
+        map.setView(validSpots[0], 16, { animate: !reduced });
+        return;
       }
+      const lats = validSpots.map(([lat]) => lat);
+      const lngs = validSpots.map(([, lng]) => lng);
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs);
+      const maxLng = Math.max(...lngs);
+      const span = Math.max(maxLat - minLat, maxLng - minLng);
+      const zoom = span > 0.2 ? 11 : span > 0.08 ? 12 : span > 0.035 ? 13 : span > 0.015 ? 14 : 15;
+      map.setView([(minLat + maxLat) / 2, (minLng + maxLng) / 2], zoom, {
+        animate: !reduced,
+      });
     };
 
     if (state.fitToken !== fitted.current && fitted.current !== -1) {
