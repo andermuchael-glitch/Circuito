@@ -46,11 +46,16 @@ function instruction(step: OsrmStep) {
 }
 
 function cueFromSteps(steps: OsrmStep[]): RouteCue | null {
-  if (!steps.length) return null;
-  const upcoming = steps.find((step, index) => index > 0 && step.maneuver?.type !== "depart") ?? steps[0];
-  const meters = steps[0]?.distance ?? upcoming.distance ?? 0;
+  const validSteps = steps.filter(
+    (step): step is OsrmStep => Boolean(step && typeof step === "object"),
+  );
+  if (!validSteps.length) return null;
+  const upcoming =
+    validSteps.find((step, index) => index > 0 && step.maneuver?.type !== "depart") ??
+    validSteps[0];
+  const meters = validSteps[0]?.distance ?? upcoming.distance ?? 0;
   return {
-    meters,
+    meters: Number.isFinite(meters) ? Math.max(0, meters) : 0,
     text: instruction(upcoming),
     modifier: upcoming.maneuver?.modifier || (upcoming.maneuver?.type === "arrive" ? "arrive" : "straight"),
   };
@@ -75,11 +80,28 @@ export async function drivingRoute(stops: LatLng[]): Promise<DrivingRoute | null
     if (data.code !== "Ok") return null;
     const route = data.routes?.[0];
     const coords = route?.geometry?.coordinates;
-    if (!route || typeof route.distance !== "number" || !coords || coords.length < 2) return null;
-    const steps = (route.legs ?? []).flatMap((leg) => leg.steps ?? []);
+    if (!route || typeof route.distance !== "number" || !Array.isArray(coords)) return null;
+
+    // OSRM responses can contain malformed/null coordinate entries. Never
+    // destructure an unchecked value: one bad point must not crash the map.
+    const points = coords
+      .filter(
+        (coordinate): coordinate is [number, number] =>
+          Array.isArray(coordinate) &&
+          coordinate.length >= 2 &&
+          Number.isFinite(coordinate[0]) &&
+          Number.isFinite(coordinate[1]) &&
+          Math.abs(coordinate[0]) <= 180 &&
+          Math.abs(coordinate[1]) <= 90,
+      )
+      .map(([lng, lat]) => ({ lat, lng }));
+    if (points.length < 2) return null;
+
+    const legs = Array.isArray(route.legs) ? route.legs : [];
+    const steps = legs.flatMap((leg) => (Array.isArray(leg?.steps) ? leg.steps : []));
     return {
       km: route.distance / 1000,
-      points: coords.map(([lng, lat]) => ({ lat, lng })),
+      points,
       cue: cueFromSteps(steps),
     };
   } catch {
