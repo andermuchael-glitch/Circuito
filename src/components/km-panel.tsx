@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useDelivery, type Comanda, type Corrida } from "@/lib/delivery-store";
+import { arrancadaNoPeriodo, qtd, useDelivery, type Comanda, type Corrida } from "@/lib/delivery-store";
 import { brl, clock, duration, kmLabel } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
@@ -39,6 +39,7 @@ function periodLabel(periodo: Periodo, cursor: Date) {
 export function KmPanel() {
   const comandas = useDelivery((state) => state.comandas);
   const corridas = useDelivery((state) => state.corridas);
+  const arrancadas = useDelivery((state) => state.arrancadas);
   const ativaId = useDelivery((state) => state.ativaId);
   const [periodo, setPeriodo] = useState<Periodo>("dia");
   const [cursor, setCursor] = useState(() => new Date());
@@ -65,6 +66,13 @@ export function KmPanel() {
     [corridas, periodo, cursor],
   );
   const taxas = entregues.reduce((sum, item) => sum + item.valor, 0);
+  const entregas = entregues.reduce((sum, item) => sum + qtd(item), 0);
+  const arrancada = arrancadaNoPeriodo(arrancadas, (key) => {
+    const [year, month, day] = key.split("-").map(Number);
+    const when = new Date(year, (month || 1) - 1, day || 1, 12).getTime();
+    return samePeriod(when, periodo, cursor);
+  });
+  const total = taxas + arrancada;
   const km = saidas.reduce((sum, item) => sum + item.km, 0);
   const rows = useMemo(() => bars(periodo, cursor, saidas), [periodo, cursor, saidas]);
 
@@ -111,10 +119,10 @@ export function KmPanel() {
 
       <div className="mt-3 grid grid-cols-2 gap-2">
         <div className="rounded-2xl bg-raised px-3 py-3">
-          <p className="text-xs text-muted">Soma das taxas</p>
-          <p className="mt-1 font-display text-4xl leading-none tracking-wide text-signal">{brl(taxas)}</p>
+          <p className="text-xs text-muted">Total do período</p>
+          <p className="mt-1 font-display text-4xl leading-none tracking-wide text-signal">{brl(total)}</p>
           <p className="mt-2 text-sm text-muted">
-            {entregues.length} {entregues.length === 1 ? "entrega" : "entregas"}
+            {entregas} {entregas === 1 ? "entrega" : "entregas"}
           </p>
         </div>
         <div className="rounded-2xl bg-raised px-3 py-3">
@@ -125,7 +133,9 @@ export function KmPanel() {
           </p>
         </div>
       </div>
-      <p className="mt-3 text-sm text-muted">Entregas e taxas do período. Os km somam as rotas dessa data.</p>
+      <p className="mt-3 text-sm text-muted">
+        Taxas {brl(taxas)} + arrancada {brl(arrancada)}. A arrancada entra uma vez em cada dia.
+      </p>
 
       <h2 className="mt-6 text-sm font-semibold tracking-wide text-muted">
         {periodo === "dia" ? "DO DIA" : periodo === "mes" ? "DO MÊS" : "DO ANO"}

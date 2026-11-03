@@ -93,7 +93,9 @@ export function ComandasPanel() {
                   <p className="font-mono text-xs text-muted">
                     {item.numero} · {new Date(item.deliveredAt ?? item.createdAt).toLocaleDateString("pt-BR")}
                   </p>
-                  <h2 className="truncate text-base font-semibold">{item.cliente}</h2>
+                  <h2 className="truncate text-base font-semibold">
+                    {item.quantidade && item.quantidade > 1 ? `${item.quantidade} comandas` : item.cliente}
+                  </h2>
                 </div>
                 <StatusPill status={item.status} />
               </div>
@@ -102,7 +104,9 @@ export function ComandasPanel() {
                 <span>{item.endereco}</span>
               </p>
               <div className="mt-3 flex items-center justify-between gap-2">
-                <p className="font-mono text-sm">Taxa {brl(item.valor)}</p>
+                <p className="font-mono text-sm">
+                  {item.quantidade && item.quantidade > 1 ? "Taxas" : "Taxa"} {brl(item.valor)}
+                </p>
                 {item.lat != null ? (
                   <button
                     type="button"

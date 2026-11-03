@@ -19,6 +19,7 @@ export type Comanda = {
   lng: number | null;
   itens: string;
   valor: number;
+  quantidade?: number;
   pagamento: Pagamento;
   status: Status;
   createdAt: number;
@@ -64,6 +65,7 @@ type Persisted = {
   tab: Tab;
   seq: number;
   base: BasePin | null;
+  arrancadas: Record<string, number>;
 };
 
 const memoryStorage = {
@@ -112,7 +114,7 @@ export const BASE_HOME: BasePin = {
 };
 
 function seed(): Persisted {
-  return { comandas: [], corridas: [], ativaId: null, tab: "mapa", seq: 1000, base: BASE_HOME };
+  return { comandas: [], corridas: [], ativaId: null, tab: "mapa", seq: 1000, base: BASE_HOME, arrancadas: {} };
 }
 
 export function partida(state: { base: BasePin | null; gaze: { lat: number; lng: number } | null }): BasePin {
@@ -123,6 +125,23 @@ export function partida(state: { base: BasePin | null; gaze: { lat: number; lng:
 
 export function comPin(item: Comanda): item is Comanda & { lat: number; lng: number } {
   return item.lat != null && item.lng != null;
+}
+
+export function qtd(item: Comanda) {
+  return item.quantidade && item.quantidade > 0 ? item.quantidade : 1;
+}
+
+export function dayKey(date: Date) {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+export function arrancadaNoPeriodo(
+  arrancadas: Record<string, number> | undefined,
+  match: (key: string) => boolean,
+) {
+  return Object.entries(arrancadas ?? {}).reduce((sum, [key, value]) => (match(key) ? sum + value : sum), 0);
 }
 
 export function corridaAtiva(state: { corridas: Corrida[]; ativaId: string | null }) {
@@ -140,22 +159,26 @@ export function nextStop(corrida: Corrida | null, comandas: Comanda[]) {
   return null;
 }
 
-export function resumo(state: { comandas: Comanda[]; corridas: Corrida[] }) {
+export function resumo(state: {
+  comandas: Comanda[];
+  corridas: Corrida[];
+  arrancadas?: Record<string, number>;
+}) {
   const t0 = startOfToday();
   const hoje = state.corridas.filter((item) => item.startedAt >= t0);
   const entregues = state.comandas.filter((item) => item.deliveredAt && item.deliveredAt >= t0);
   const abertas = state.comandas.filter((item) => item.status === "aberta" || item.status === "rota");
-  const ticket = entregues.length
-    ? entregues.reduce((sum, item) => sum + item.valor, 0) / entregues.length
-    : 0;
-  const taxasHoje = entregues.reduce((sum, item) => sum + item.valor, 0);
+  const taxas = entregues.reduce((sum, item) => sum + item.valor, 0);
+  const entreguesHoje = entregues.reduce((sum, item) => sum + qtd(item), 0);
+  const ticket = entreguesHoje ? taxas / entreguesHoje : 0;
+  const arrancadaHoje = state.arrancadas?.[dayKey(new Date())] ?? 0;
   return {
     kmHoje: hoje.reduce((sum, item) => sum + item.km, 0),
     kmTotal: state.corridas.reduce((sum, item) => sum + item.km, 0),
-    entreguesHoje: entregues.length,
+    entreguesHoje,
     abertas: abertas.length,
     ticket,
-    taxasHoje,
+    taxasHoje: taxas + arrancadaHoje,
     corridasHoje: hoje.length,
   };
 }
@@ -191,7 +214,13 @@ type Store = Persisted & {
   startPick: () => void;
   cancelPick: () => void;
   dropPin: (pin: LatLng) => void;
-  saveDraft: (input: { valor: number; dia: string; comEndereco: boolean }) => void;
+  saveDraft: (input: {
+    valor: number;
+    dia: string;
+    comEndereco: boolean;
+    quantidade?: number;
+    arrancada?: number;
+  }) => void;
   cancelComanda: (id: string) => void;
   startCorrida: (ids: string[]) => void;
   markEntregue: (id: string) => void;
@@ -287,41 +316,49 @@ export const useDelivery = create<Store>()(
             : null,
         });
       },
-      saveDraft: ({ valor, dia, comEndereco }) => {
+      saveDraft: ({ valor, dia, comEndereco, quantidade, arrancada }) => {
         const draft = get().draft;
         if (!draft) return;
+        const qtdDia = quantidade && quantidade > 1 ? Math.round(quantidade) : 1;
         const [year, month, day] = dia.split("-").map(Number);
         const when = new Date(year, (month || 1) - 1, day || 1, 12, 0, 0, 0).getTime();
         const hoje = new Date(when).toDateString() === new Date().toDateString();
-        const registrar = !hoje || !comEndereco;
-        const lat = comEndereco ? draft.lat : null;
-        const lng = comEndereco ? draft.lng : null;
-        if (comEndereco && (lat == null || lng == null)) return;
+        const registrar = qtdDia > 1 || !hoje || !comEndereco;
+        const lat = comEndereco && qtdDia === 1 ? draft.lat : null;
+        const lng = comEndereco && qtdDia === 1 ? draft.lng : null;
+        if (qtdDia === 1 && comEndereco && (lat == null || lng == null)) return;
         const seq = get().seq + 1;
         const comanda: Comanda = {
           id: crypto.randomUUID(),
           numero: `C-${seq}`,
-          cliente: draft.cliente.trim(),
+          cliente: qtdDia > 1 ? `${qtdDia} comandas` : draft.cliente.trim(),
           telefone: draft.telefone.trim(),
-          endereco: comEndereco ? draft.endereco.trim() : "Sem endereço",
+          endereco: qtdDia > 1 ? "Lançamento do dia" : comEndereco ? draft.endereco.trim() : "Sem endereço",
           lat,
           lng,
           itens: draft.itens.trim(),
           valor,
+          quantidade: qtdDia,
           pagamento: draft.pagamento,
           status: registrar ? "entregue" : "aberta",
           createdAt: registrar ? when : Date.now(),
           deliveredAt: registrar ? when : undefined,
         };
+        const key = dia;
+        const arrancadas = { ...(get().arrancadas ?? {}) };
+        if (arrancada != null && Number.isFinite(arrancada)) arrancadas[key] = arrancada;
         set({
           seq,
+          arrancadas,
           comandas: [comanda, ...get().comandas],
           draft: null,
           selectedId: comanda.id,
           tab: registrar ? "km" : "comandas",
           focusDay: registrar ? when : null,
         });
-        toast.success(registrar ? `${comanda.cliente} registrada no dia` : `${comanda.numero} entrou na fila`);
+        toast.success(
+          qtdDia > 1 ? `${qtdDia} comandas lançadas no dia` : registrar ? `${comanda.cliente} registrada no dia` : `${comanda.numero} entrou na fila`,
+        );
       },
       cancelComanda: (id) => {
         set({
@@ -510,6 +547,7 @@ export const useDelivery = create<Store>()(
         tab: state.tab,
         seq: state.seq,
         base: state.base,
+        arrancadas: state.arrancadas,
       }),
       onRehydrateStorage: () => (_state, error) => {
         if (error) {
@@ -526,6 +564,7 @@ export const useDelivery = create<Store>()(
           hydrated: true,
           corridas,
           base: state.base?.endereco === BASE_HOME.endereco ? state.base : BASE_HOME,
+          arrancadas: state.arrancadas ?? {},
           mapPick: false,
           draft: null,
         });

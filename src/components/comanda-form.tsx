@@ -18,6 +18,9 @@ export function ComandaForm() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [marcar, setMarcar] = useState(false);
+  const [lote, setLote] = useState(false);
+  const [quantidade, setQuantidade] = useState("10");
+  const [arrancada, setArrancada] = useState("60");
   const [dia, setDia] = useState(() => {
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -55,18 +58,39 @@ export function ComandaForm() {
     event.preventDefault();
     const current = useDelivery.getState().draft;
     if (!current) return;
-    if (!current.cliente.trim()) {
+    if (!lote && !current.cliente.trim()) {
       setError("Informe a comanda.");
       return;
     }
     const taxa = parseMoney(current.valor);
     if (!Number.isFinite(taxa) || taxa < 0) {
-      setError("Informe a taxa.");
+      setError(lote ? "Informe o total das taxas." : "Informe a taxa.");
+      return;
+    }
+    const arrancadaValor = arrancada.trim() === "" ? 60 : parseMoney(arrancada);
+    if (!Number.isFinite(arrancadaValor) || arrancadaValor < 0) {
+      setError("Informe a arrancada. Use 0 se não tiver.");
+      return;
+    }
+    if (lote) {
+      const qtdDia = Math.round(Number(quantidade.replace(",", ".")));
+      if (!Number.isFinite(qtdDia) || qtdDia < 2) {
+        setError("Informe a quantidade, no mínimo 2.");
+        return;
+      }
+      setError("");
+      useDelivery.getState().saveDraft({
+        valor: taxa,
+        dia,
+        comEndereco: false,
+        quantidade: qtdDia,
+        arrancada: arrancadaValor,
+      });
       return;
     }
     if (!marcar) {
       setError("");
-      useDelivery.getState().saveDraft({ valor: taxa, dia, comEndereco: false });
+      useDelivery.getState().saveDraft({ valor: taxa, dia, comEndereco: false, arrancada: arrancadaValor });
       return;
     }
     if (current.endereco.trim().length < 3) {
@@ -98,7 +122,7 @@ export function ComandaForm() {
     }
     setError("");
     useDelivery.getState().patchDraft({ endereco: enderecoFinal, lat, lng });
-    useDelivery.getState().saveDraft({ valor: taxa, dia, comEndereco: true });
+    useDelivery.getState().saveDraft({ valor: taxa, dia, comEndereco: true, arrancada: arrancadaValor });
   }
 
   return (
@@ -110,7 +134,9 @@ export function ComandaForm() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-3xl leading-none tracking-wide">NOVA COMANDA</h2>
-            <p className="mt-1 text-sm text-muted">Escolha o dia. O endereço só entra se você marcar.</p>
+            <p className="mt-1 text-sm text-muted">
+              {lote ? "Lance várias de uma vez. A arrancada entra uma vez no dia." : "Uma comanda, ou várias do mesmo dia."}
+            </p>
           </div>
           <button
             type="button"
@@ -133,27 +159,51 @@ export function ComandaForm() {
           />
         </label>
 
-        <label className="mt-3 block text-sm font-medium">
-          Comanda
-          <input
-            value={draft.cliente}
-            onChange={(event) => useDelivery.getState().patchDraft({ cliente: event.target.value })}
-            className="mt-1 h-12 w-full rounded-2xl border border-line bg-ink px-3 text-base outline-none"
-            placeholder="Número ou nome"
-            autoFocus
-          />
-        </label>
-
         <button
           type="button"
-          onClick={() => setMarcar((value) => !value)}
-          className="mt-3 flex h-12 w-full items-center justify-between rounded-2xl border border-line bg-ink px-3 text-sm font-medium"
+          onClick={() => setLote((value) => !value)}
+          className="mt-4 flex h-12 w-full items-center justify-between rounded-2xl border border-line bg-ink px-3 text-sm font-medium"
         >
-          Marcar endereço
-          <span className={marcar ? "text-go" : "text-muted"}>{marcar ? "Sim" : "Não"}</span>
+          Várias de uma vez
+          <span className={lote ? "text-go" : "text-muted"}>{lote ? "Sim" : "Não"}</span>
         </button>
 
-        {marcar ? (
+        {lote ? (
+          <label className="mt-3 block text-sm font-medium">
+            Quantidade
+            <input
+              value={quantidade}
+              onChange={(event) => setQuantidade(event.target.value)}
+              className="mt-1 h-12 w-full rounded-2xl border border-line bg-ink px-3 font-mono text-base outline-none"
+              inputMode="numeric"
+              placeholder="10"
+            />
+          </label>
+        ) : (
+          <label className="mt-3 block text-sm font-medium">
+            Comanda
+            <input
+              value={draft.cliente}
+              onChange={(event) => useDelivery.getState().patchDraft({ cliente: event.target.value })}
+              className="mt-1 h-12 w-full rounded-2xl border border-line bg-ink px-3 text-base outline-none"
+              placeholder="Número ou nome"
+              autoFocus
+            />
+          </label>
+        )}
+
+        {!lote ? (
+          <button
+            type="button"
+            onClick={() => setMarcar((value) => !value)}
+            className="mt-3 flex h-12 w-full items-center justify-between rounded-2xl border border-line bg-ink px-3 text-sm font-medium"
+          >
+            Marcar endereço
+            <span className={marcar ? "text-go" : "text-muted"}>{marcar ? "Sim" : "Não"}</span>
+          </button>
+        ) : null}
+
+        {!lote && marcar ? (
           <>
             <label className="mt-3 block text-sm font-medium">
               Endereço
@@ -208,7 +258,7 @@ export function ComandaForm() {
         ) : null}
 
         <label className="mt-3 block text-sm font-medium">
-          Taxa
+          {lote ? "Total das taxas" : "Taxa"}
           <input
             value={draft.valor}
             onChange={(event) => useDelivery.getState().patchDraft({ valor: event.target.value })}
@@ -218,12 +268,24 @@ export function ComandaForm() {
           />
         </label>
 
+        <label className="mt-3 block text-sm font-medium">
+          Arrancada do dia
+          <input
+            value={arrancada}
+            onChange={(event) => setArrancada(event.target.value)}
+            className="mt-1 h-12 w-full rounded-2xl border border-line bg-ink px-3 font-mono text-base outline-none"
+            placeholder="60,00"
+            inputMode="decimal"
+          />
+        </label>
+        <p className="mt-1 text-xs text-muted">Padrão R$ 60. Soma uma vez com as taxas desse dia, não em cada comanda.</p>
+
         {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
 
         <div className="mt-4">
           <PrimaryButton type="submit" disabled={busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Salvar
+            {lote ? "Lançar o dia" : "Salvar"}
           </PrimaryButton>
         </div>
       </form>
