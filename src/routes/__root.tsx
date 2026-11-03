@@ -5,6 +5,8 @@ import appCss from "../styles.css?url";
 
 const APP_NAME = "Circuito";
 
+const base = import.meta.env.BASE_URL;
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -18,10 +20,10 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#07110c" },
     ],
     links: [
-      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "icon", type: "image/svg+xml", href: `${base}favicon.svg` },
       { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: "/__grok/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
+      { rel: "manifest", href: `${base}__grok/manifest.webmanifest` },
+      { rel: "apple-touch-icon", href: `${base}__grok/icon-180.png` },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
