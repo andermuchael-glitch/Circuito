@@ -81,6 +81,24 @@
   padding-bottom: max(0.4rem, env(safe-area-inset-bottom));
 }
 
+@media (max-width: 767px) {
+  .app-shell {
+    padding-top: max(env(safe-area-inset-top), 2.75rem);
+  }
+
+  .dock {
+    padding-bottom: max(env(safe-area-inset-bottom), 3.5rem);
+  }
+
+  html.native-insets .app-shell {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  html.native-insets .dock {
+    padding-bottom: max(0.4rem, env(safe-area-inset-bottom));
+  }
+}
+
 .leaflet-container {
   height: 100%;
   width: 100%;
