@@ -75,10 +75,13 @@ export function MapView() {
         here ? 15 : 4,
       );
       L.control.zoom({ position: "topright" }).addTo(map);
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      }).addTo(map);
+      L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        {
+          attribution: "Ruas &copy; Esri, OpenStreetMap",
+          maxZoom: 19,
+        },
+      ).addTo(map);
       const signal = cssColor("--color-signal", "#ffb020");
       signalRef.current = signal;
       crumbRef.current = L.polyline([], { color: signal, weight: 5, opacity: 0.95 }).addTo(map);

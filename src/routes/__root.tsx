@@ -18,12 +18,15 @@ export const Route = createRootRoute({
         content: "GPS das corridas de delivery: comandas, rotas, localização ao vivo e km rodados.",
       },
       { name: "theme-color", content: "#07110c" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: APP_NAME },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: `${base}favicon.svg` },
       { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: `${base}__grok/manifest.webmanifest` },
-      { rel: "apple-touch-icon", href: `${base}__grok/icon-180.png` },
+      { rel: "manifest", href: `${base}manifest.webmanifest` },
+      { rel: "apple-touch-icon", href: `${base}icons/icon-192.png` },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

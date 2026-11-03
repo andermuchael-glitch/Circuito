@@ -148,7 +148,7 @@ function authPopupPlugin(): Plugin {
 const pages = process.env.NITRO_PRESET === "github_pages";
 
 export default defineConfig(({ command, isPreview }) => ({
-  base: pages ? "./" : "/",
+  base: pages ? "/Circuito/" : "/",
   server: {
     host: "0.0.0.0",
     port: 8080,

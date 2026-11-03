@@ -37,6 +37,12 @@ export function App() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    if (!window.location.pathname.startsWith("/Circuito")) return;
+    void navigator.serviceWorker.register("/Circuito/sw.js", { scope: "/Circuito/" });
+  }, []);
+
   return (
     <div className="flex h-dvh flex-col bg-bg text-paper">
       <LiveEngine />
