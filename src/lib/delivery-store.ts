@@ -113,6 +113,11 @@ export const BASE_HOME: BasePin = {
   endereco: "Rua 904, 1015",
 };
 
+export function isDefaultBase(base: BasePin | null) {
+  if (!base) return true;
+  return Math.abs(base.lat - BASE_HOME.lat) < 0.0002 && Math.abs(base.lng - BASE_HOME.lng) < 0.0002;
+}
+
 function seed(): Persisted {
   return { comandas: [], corridas: [], ativaId: null, tab: "mapa", seq: 1000, base: BASE_HOME, arrancadas: {} };
 }
@@ -238,6 +243,7 @@ type Store = Persisted & {
   enableLive: () => void;
   disableLive: () => void;
   setBase: (base: BasePin) => void;
+  pinBaseHere: () => void;
   setPreview: (ids: string[]) => void;
   setRoute: (route: {
     line: LatLng[];
@@ -580,6 +586,15 @@ export const useDelivery = create<Store>()(
         }),
       disableLive: () => set({ live: false, liveStatus: "off", gpsError: null }),
       setBase: (base) => set({ base }),
+      pinBaseHere: () => {
+        const gaze = get().gaze;
+        if (!gaze) {
+          toast.error("Espere a seta do GPS aparecer.");
+          return;
+        }
+        set({ base: { lat: gaze.lat, lng: gaze.lng, endereco: BASE_HOME.endereco } });
+        toast.success("Base colocada na seta.");
+      },
       setPreview: (previewIds) =>
         set({
           previewIds,

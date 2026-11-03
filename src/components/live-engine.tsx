@@ -1,6 +1,7 @@
 import { useEffect } from "react";
-import { buildSimPath, corridaAtiva, useDelivery } from "@/lib/delivery-store";
+import { buildSimPath, corridaAtiva, isDefaultBase, BASE_HOME, useDelivery } from "@/lib/delivery-store";
 import { holdScreen, releaseScreen } from "@/lib/screen";
+import { toast } from "sonner";
 
 export function LiveEngine() {
   const live = useDelivery((state) => state.live);
@@ -54,8 +55,9 @@ export function LiveEngine() {
       store.setLiveStatus("ativo");
       store.setGpsError(null);
       store.setGaze(point);
-      if (!useDelivery.getState().base) {
-        useDelivery.getState().setBase({ ...point, endereco: "Sua posição" });
+      if (isDefaultBase(store.base) && (accuracy == null || accuracy <= 50)) {
+        store.setBase({ ...point, endereco: BASE_HOME.endereco });
+        toast.success("Base colocada onde você está.");
       }
 
       const run = corridaAtiva(useDelivery.getState());

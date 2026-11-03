@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { setWorkerUrl } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import { Crosshair, LocateFixed, Maximize2 } from "lucide-react";
+import { Crosshair, Home, LocateFixed, Maximize2 } from "lucide-react";
 import { IconButton } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
 import { bearing, haversine, type LatLng } from "@/lib/geo";
@@ -341,6 +341,9 @@ export function MapView() {
         </IconButton>
         <IconButton label="Enquadrar rota" onClick={() => useDelivery.getState().requestFit()}>
           <Maximize2 className="h-5 w-5" />
+        </IconButton>
+        <IconButton label="Base aqui" onClick={() => useDelivery.getState().pinBaseHere()}>
+          <Home className="h-5 w-5" />
         </IconButton>
       </div>
     </div>
