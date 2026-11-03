@@ -100,7 +100,7 @@ function expandQueries(query: string) {
   const q = query.trim().replace(/\s+/g, " ");
   const out = [q];
   const hasCity = /cambori[uú]|itaja|camboriu|santa catarina/i.test(q);
-  if (/rua\\s+araquari/i.test(q) && /balne[aá]rio/i.test(q)) {
+  if (/rua\s+araquari/i.test(q) && /balne[aá]rio/i.test(q)) {
     out.push(`${q}, Municípios, Balneário Camboriú, SC, 88337-480`);
   }
   if (!hasCity) out.push(`${q}, ${CITY}`);
@@ -134,7 +134,7 @@ async function fetchNominatim(query: string, near?: LatLng | null) {
   });
   if (response.status === 429) throw new Error("busca ocupada");
   if (!response.ok) throw new Error("não foi possível buscar o endereço");
-  const data = (await response.json()) as { lat: string; lon: string; display_name: string }[];
+  const data = (await response.json()) as { lat: string; lon: string; display_name: string; address?: { city?: string; town?: string; municipality?: string; county?: string } }[];
   return data.map((item) => ({
     label: item.display_name.split(",").slice(0, 5).join(",").trim(),
     lat: Number(item.lat),
@@ -157,7 +157,7 @@ async function fetchPhoton(query: string, near?: LatLng | null) {
   const data = (await response.json()) as {
     features?: {
       geometry?: { coordinates?: unknown };
-      properties?: { name?: string; street?: string; housenumber?: string; city?: string; state?: string };
+      properties?: { name?: string; street?: string; housenumber?: string; city?: string; district?: string; state?: string };
     }[];
   };
   return (data.features ?? []).flatMap((feature) => {
@@ -208,6 +208,7 @@ export async function searchNominatim(query: string, near?: LatLng | null) {
       try {
         const batch = await fetchPhoton(attempt, near);
         for (const item of batch) {
+          if (/balne[aá]rio/i.test(query) && item.city && !/balne[aá]rio cambori[uú]/i.test(item.city)) continue;
           if (near && haversine(near, item) > 12) continue;
           const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
           if (seen.has(key)) continue;
