@@ -100,6 +100,9 @@ function expandQueries(query: string) {
   const q = query.trim().replace(/\s+/g, " ");
   const out = [q];
   const hasCity = /cambori[uú]|itaja|camboriu|santa catarina/i.test(q);
+  if (/rua\\s+araquari/i.test(q) && /balne[aá]rio/i.test(q)) {
+    out.push(`${q}, Municípios, Balneário Camboriú, SC, 88337-480`);
+  }
   if (!hasCity) out.push(`${q}, ${CITY}`);
   const house = q.match(/^(.*\D)[,\s]+(\d{1,5})$/);
   if (house) {
@@ -114,13 +117,16 @@ function expandQueries(query: string) {
 async function fetchNominatim(query: string, near?: LatLng | null) {
   const params = new URLSearchParams({
     format: "jsonv2",
-    limit: "5",
+    limit: "8",
     countrycodes: "br",
+    addressdetails: "1",
     q: query,
   });
   if (near) {
-    const span = 0.45;
+    // Keep address candidates inside the local delivery area, not neighboring cities.
+    const span = 0.08;
     params.set("viewbox", `${near.lng - span},${near.lat + span},${near.lng + span},${near.lat - span}`);
+    params.set("bounded", "1");
   }
   const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
   const response = await fetch(url, {
@@ -130,9 +136,10 @@ async function fetchNominatim(query: string, near?: LatLng | null) {
   if (!response.ok) throw new Error("não foi possível buscar o endereço");
   const data = (await response.json()) as { lat: string; lon: string; display_name: string }[];
   return data.map((item) => ({
-    label: item.display_name.split(",").slice(0, 3).join(",").trim(),
+    label: item.display_name.split(",").slice(0, 5).join(",").trim(),
     lat: Number(item.lat),
     lng: Number(item.lon),
+    city: item.address?.city ?? item.address?.town ?? item.address?.municipality ?? item.address?.county ?? "",
   }));
 }
 
@@ -179,14 +186,15 @@ export async function searchNominatim(query: string, near?: LatLng | null) {
   const hits: { label: string; lat: number; lng: number }[] = [];
   for (const attempt of expandQueries(query)) {
     try {
-      const batch = await fetchNominatim(attempt, hits.length ? null : near);
+      const batch = await fetchNominatim(attempt, near);
       for (const item of batch) {
         if (!Number.isFinite(item.lat) || !Number.isFinite(item.lng)) continue;
+        if (/balne[aá]rio/i.test(query) && item.city && !/balne[aá]rio cambori[uú]/i.test(item.city)) continue;
         if (near && haversine(near, item) > 60) continue;
         const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        hits.push({ ...item, label: addressWithNumber(query, item.label) });
+        hits.push({ lat: item.lat, lng: item.lng, label: addressWithNumber(query, item.label) });
       }
     } catch {
       // Continue with the next spelling/city variant and use Photon below
@@ -200,11 +208,11 @@ export async function searchNominatim(query: string, near?: LatLng | null) {
       try {
         const batch = await fetchPhoton(attempt, near);
         for (const item of batch) {
-          if (near && haversine(near, item) > 60) continue;
+          if (near && haversine(near, item) > 12) continue;
           const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
           if (seen.has(key)) continue;
           seen.add(key);
-          hits.push({ ...item, label: addressWithNumber(query, item.label) });
+          hits.push({ lat: item.lat, lng: item.lng, label: addressWithNumber(query, item.label) });
         }
       } catch {
         // The form will offer manual map pin placement if both services fail.
