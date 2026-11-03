@@ -4,6 +4,7 @@ import { GhostButton, PrimaryButton, payName } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
 import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, waLink, wazeLink } from "@/lib/format";
 import { haversine, optimizeOrder, straightKm } from "@/lib/geo";
+import { holdScreen } from "@/lib/screen";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/cn";
 
@@ -211,6 +212,7 @@ export function RotaPanel() {
           <PrimaryButton
             disabled={!selected.length}
             onClick={() => {
+              void holdScreen();
               useDelivery.getState().startCorrida(selected.map((item) => item.id));
               setOrder([]);
             }}

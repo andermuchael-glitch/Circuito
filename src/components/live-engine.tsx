@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { buildSimPath, corridaAtiva, useDelivery } from "@/lib/delivery-store";
+import { holdScreen, releaseScreen } from "@/lib/screen";
 
 export function LiveEngine() {
   const live = useDelivery((state) => state.live);
@@ -7,6 +8,25 @@ export function LiveEngine() {
   const modo = useDelivery((state) => corridaAtiva(state)?.modo ?? null);
   const ativaId = useDelivery((state) => state.ativaId);
   const simToken = useDelivery((state) => state.simToken);
+
+  useEffect(() => {
+    const sync = () => {
+      const run = corridaAtiva(useDelivery.getState());
+      if (run?.status === "ativa") void holdScreen();
+      else void releaseScreen();
+    };
+    sync();
+    const unsub = useDelivery.subscribe(sync);
+    const wake = () => sync();
+    document.addEventListener("visibilitychange", wake);
+    document.addEventListener("pointerdown", wake);
+    return () => {
+      unsub();
+      document.removeEventListener("visibilitychange", wake);
+      document.removeEventListener("pointerdown", wake);
+      void releaseScreen();
+    };
+  }, []);
 
   useEffect(() => {
     if (!live) return;

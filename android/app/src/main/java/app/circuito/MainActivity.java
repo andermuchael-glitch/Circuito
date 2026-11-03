@@ -8,7 +8,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
+import android.view.WindowManager;
 import android.webkit.GeolocationPermissions;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -72,12 +74,23 @@ public class MainActivity extends Activity {
                 callback.invoke(origin, true, false);
             }
         });
+        web.addJavascriptInterface(new ScreenBridge(), "Circuito");
         web.loadUrl(START);
     }
 
     private void markNativeInsets() {
         if (web == null || (insetTop == 0 && insetBottom == 0)) return;
         web.evaluateJavascript("document.documentElement.classList.add('native-insets')", null);
+    }
+
+    private final class ScreenBridge {
+        @JavascriptInterface
+        public void stayOn(boolean on) {
+            runOnUiThread(() -> {
+                if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            });
+        }
     }
 
     @Override
