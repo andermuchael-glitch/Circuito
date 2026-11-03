@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 @import "maplibre-gl/dist/maplibre-gl.css";
 
 @theme {
@@ -76,27 +77,32 @@
   padding-bottom: max(0.4rem, env(safe-area-inset-bottom));
 }
 
-.maplibregl-map {
+.leaflet-container {
   height: 100%;
   width: 100%;
   background: #e6ebf0;
   font-family: var(--font-sans);
+  z-index: 0;
 }
 
-.maplibregl-ctrl-bottom-left,
-.maplibregl-ctrl-bottom-right {
+.leaflet-bottom {
   bottom: 11rem;
 }
 
-.maplibregl-ctrl-attrib {
+.leaflet-control-attribution {
   background: color-mix(in srgb, white 86%, transparent) !important;
   color: #243128 !important;
   font-size: 10px !important;
   max-width: 70%;
 }
 
-.maplibregl-ctrl-attrib a {
+.leaflet-control-attribution a {
   color: #243128 !important;
+}
+
+.leaflet-div-icon.pin-wrap {
+  background: transparent;
+  border: none;
 }
 
 .pin {
