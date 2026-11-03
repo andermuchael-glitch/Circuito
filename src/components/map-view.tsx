@@ -12,11 +12,6 @@ function resolveLeaflet(mod: LeafletNS & { default?: LeafletNS }) {
   return mod;
 }
 
-function cssColor(name: string, fallback: string) {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value || fallback;
-}
-
 export function MapView() {
   const hostRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
@@ -72,24 +67,22 @@ export function MapView() {
       const here = useDelivery.getState().gaze ?? useDelivery.getState().base;
       const map = L.map(hostRef.current, { zoomControl: false, attributionControl: true }).setView(
         here ? [here.lat, here.lng] : [-15.8, -47.9],
-        here ? 15 : 4,
+        here ? 16 : 4,
       );
-      L.control.zoom({ position: "topright" }).addTo(map);
-      L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-        {
-          attribution: "Ruas &copy; Esri, OpenStreetMap",
-          maxZoom: 19,
-        },
-      ).addTo(map);
-      const signal = cssColor("--color-signal", "#ffb020");
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        subdomains: "abcd",
+        maxZoom: 20,
+      }).addTo(map);
+      const signal = "#4C9AFF";
       signalRef.current = signal;
-      crumbRef.current = L.polyline([], { color: signal, weight: 5, opacity: 0.95 }).addTo(map);
+      crumbRef.current = L.polyline([], { color: "#8d97a5", weight: 7, opacity: 0.85 }).addTo(map);
       planRef.current = L.polyline([], {
         color: signal,
-        weight: 4,
-        opacity: 0.9,
-        dashArray: "8 8",
+        weight: 8,
+        opacity: 0.95,
+        lineCap: "round",
+        lineJoin: "round",
       }).addTo(map);
       pinsRef.current = L.layerGroup().addTo(map);
       map.on("click", (event) => {
@@ -227,9 +220,9 @@ export function MapView() {
       const liveDot = state.liveStatus === "ativo" && !simulating;
       const icon = L.divIcon({
         className: "pin-wrap",
-        html: `<div class="rider${liveDot ? " rider-pulse" : ""}" style="transform: rotate(${heading}deg)"></div>`,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
+        html: `<div class="car-chevron${liveDot ? " rider-pulse" : ""}" style="transform: rotate(${heading}deg)"></div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
       });
       if (!riderRef.current) {
         riderRef.current = L.marker([riderAt.lat, riderAt.lng], { icon, zIndexOffset: 800 }).addTo(map);
@@ -295,7 +288,9 @@ export function MapView() {
     } else if (state.fitToken !== fitted.current) {
       fitRoute();
     } else if (state.follow && riderAt) {
-      map.panTo([riderAt.lat, riderAt.lng], { animate: !reduced });
+      const zoom = Math.max(map.getZoom(), 17);
+      map.setView([riderAt.lat, riderAt.lng], zoom, { animate: !reduced });
+      if (host) map.panBy([0, Math.round(host.clientHeight * 0.18)], { animate: false });
     }
   }, [ready, tick, tab]);
 
@@ -321,7 +316,7 @@ export function MapView() {
   return (
     <div className="relative h-full w-full">
       <div ref={hostRef} className="absolute inset-0" />
-      <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
+      <div className="absolute top-28 right-3 z-10 flex flex-col gap-2">
         <IconButton label="Onde estou" pressed={liveStatus === "ativo"} onClick={locate}>
           <LocateFixed className="h-5 w-5" />
         </IconButton>

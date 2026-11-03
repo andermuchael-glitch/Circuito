@@ -203,6 +203,7 @@ type Store = Persisted & {
   routeLine: LatLng[];
   routeKm: number | null;
   routeKind: "rua" | "reta" | null;
+  routeCue: { meters: number; text: string; modifier: string } | null;
   routeRev: number;
   setTab: (tab: Tab) => void;
   select: (id: string | null) => void;
@@ -238,7 +239,12 @@ type Store = Persisted & {
   disableLive: () => void;
   setBase: (base: BasePin) => void;
   setPreview: (ids: string[]) => void;
-  setRoute: (route: { line: LatLng[]; km: number | null; kind: "rua" | "reta" | null }) => void;
+  setRoute: (route: {
+    line: LatLng[];
+    km: number | null;
+    kind: "rua" | "reta" | null;
+    cue?: { meters: number; text: string; modifier: string } | null;
+  }) => void;
 };
 
 function simulationStops(state: Store): LatLng[] {
@@ -277,6 +283,7 @@ export const useDelivery = create<Store>()(
       routeLine: [],
       routeKm: null,
       routeKind: null,
+      routeCue: null,
       routeRev: 0,
       setTab: (tab) => set({ tab }),
       select: (selectedId) => set({ selectedId, follow: selectedId ? false : get().follow }),
@@ -585,6 +592,7 @@ export const useDelivery = create<Store>()(
           routeLine: route.line,
           routeKm: route.km,
           routeKind: route.kind,
+          routeCue: route.cue ?? null,
           routeRev: get().routeRev + 1,
         }),
     }),

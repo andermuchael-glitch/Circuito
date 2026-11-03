@@ -35,8 +35,8 @@ export function RouteEngine() {
 
     if (!origin || !home || (!run && stops.length === 0)) {
       const current = useDelivery.getState();
-      if (current.routeLine.length || current.routeKm != null) {
-        current.setRoute({ line: [], km: null, kind: null });
+      if (current.routeLine.length || current.routeKm != null || current.routeCue) {
+        current.setRoute({ line: [], km: null, kind: null, cue: null });
       }
       return;
     }
@@ -47,13 +47,14 @@ export function RouteEngine() {
       void drivingRoute(waypoints).then((routed) => {
         if (cancel) return;
         if (routed) {
-          useDelivery.getState().setRoute({ line: routed.points, km: routed.km, kind: "rua" });
+          useDelivery.getState().setRoute({ line: routed.points, km: routed.km, kind: "rua", cue: routed.cue });
           return;
         }
         useDelivery.getState().setRoute({
           line: waypoints,
           km: straightKm(origin, [...stops, home]),
           kind: "reta",
+          cue: null,
         });
       });
     }, 280);
