@@ -136,20 +136,81 @@ async function fetchNominatim(query: string, near?: LatLng | null) {
   }));
 }
 
+
+async function fetchPhoton(query: string, near?: LatLng | null) {
+  const params = new URLSearchParams({ q: query, lang: "pt", limit: "5" });
+  if (near) {
+    params.set("lat", String(near.lat));
+    params.set("lon", String(near.lng));
+  }
+  const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`, {
+    headers: { Accept: "application/json", "Accept-Language": "pt-BR" },
+  });
+  if (!response.ok) throw new Error("não foi possível buscar o endereço");
+  const data = (await response.json()) as {
+    features?: {
+      geometry?: { coordinates?: unknown };
+      properties?: { name?: string; street?: string; housenumber?: string; city?: string; state?: string };
+    }[];
+  };
+  return (data.features ?? []).flatMap((feature) => {
+    const coordinates = feature.geometry?.coordinates;
+    if (
+      !Array.isArray(coordinates) ||
+      coordinates.length < 2 ||
+      !Number.isFinite(coordinates[0]) ||
+      !Number.isFinite(coordinates[1])
+    ) return [];
+    const [lng, lat] = coordinates as [number, number];
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return [];
+    const props = feature.properties ?? {};
+    const label = [
+      [props.street ?? props.name, props.housenumber].filter(Boolean).join(", "),
+      props.city,
+      props.state,
+    ].filter(Boolean).join(", ");
+    if (!label) return [];
+    return [{ label, lat, lng }];
+  });
+}
+
 export async function searchNominatim(query: string, near?: LatLng | null) {
   const seen = new Set<string>();
   const hits: { label: string; lat: number; lng: number }[] = [];
   for (const attempt of expandQueries(query)) {
-    const batch = await fetchNominatim(attempt, hits.length ? null : near);
-    for (const item of batch) {
-      if (!Number.isFinite(item.lat) || !Number.isFinite(item.lng)) continue;
-      if (near && haversine(near, item) > 60) continue;
-      const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      hits.push({ ...item, label: addressWithNumber(query, item.label) });
+    try {
+      const batch = await fetchNominatim(attempt, hits.length ? null : near);
+      for (const item of batch) {
+        if (!Number.isFinite(item.lat) || !Number.isFinite(item.lng)) continue;
+        if (near && haversine(near, item) > 60) continue;
+        const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        hits.push({ ...item, label: addressWithNumber(query, item.label) });
+      }
+    } catch {
+      // Continue with the next spelling/city variant and use Photon below
+      // if Nominatim is temporarily rate-limited or unavailable.
     }
     if (hits.length >= 5) break;
+  }
+
+  if (!hits.length) {
+    for (const attempt of expandQueries(query)) {
+      try {
+        const batch = await fetchPhoton(attempt, near);
+        for (const item of batch) {
+          if (near && haversine(near, item) > 60) continue;
+          const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          hits.push({ ...item, label: addressWithNumber(query, item.label) });
+        }
+      } catch {
+        // The form will offer manual map pin placement if both services fail.
+      }
+      if (hits.length >= 5) break;
+    }
   }
   return hits.slice(0, 5);
 }
