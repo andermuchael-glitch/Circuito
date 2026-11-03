@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { MapPin, Plus, Search } from "lucide-react";
 import { StatusPill } from "@/components/bits";
-import { useDelivery, type Status } from "@/lib/delivery-store";
-import { brl } from "@/lib/format";
+import { dayKey, useDelivery, type Status } from "@/lib/delivery-store";
+import { brl, parseMoney } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
 const filters: { id: "fila" | "entregue" | "todas"; label: string }[] = [
@@ -19,8 +19,11 @@ function matches(status: Status, filter: (typeof filters)[number]["id"]) {
 
 export function ComandasPanel() {
   const comandas = useDelivery((state) => state.comandas);
-  const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("fila");
+  const arrancadas = useDelivery((state) => state.arrancadas);
+  const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("todas");
   const [query, setQuery] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const needle = query.trim().toLowerCase();
 
   const list = useMemo(() => {
@@ -107,25 +110,175 @@ export function ComandasPanel() {
                 <p className="font-mono text-sm">
                   {item.quantidade && item.quantidade > 1 ? "Taxas" : "Taxa"} {brl(item.valor)}
                 </p>
-                {item.lat != null ? (
+                <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => {
-                      useDelivery.getState().select(item.id);
-                      useDelivery.getState().setTab("mapa");
-                      useDelivery.getState().requestFit();
+                      setConfirmId(null);
+                      setEditId((current) => (current === item.id ? null : item.id));
                     }}
                     className="h-10 rounded-full border border-line px-3 text-sm font-medium"
                   >
-                    Ver no mapa
+                    Editar
                   </button>
-                ) : (
-                  <span className="text-xs text-muted">Sem endereço</span>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditId(null);
+                      setConfirmId((current) => (current === item.id ? null : item.id));
+                    }}
+                    className="h-10 rounded-full border border-line px-3 text-sm font-medium text-danger"
+                  >
+                    Apagar
+                  </button>
+                </div>
               </div>
+              {editId === item.id ? (
+                <EditCard
+                  id={item.id}
+                  dia={dayKey(new Date(item.deliveredAt ?? item.createdAt))}
+                  valor={String(item.valor).replace(".", ",")}
+                  quantidade={String(item.quantidade && item.quantidade > 1 ? item.quantidade : 1)}
+                  arrancada={String(arrancadas?.[dayKey(new Date(item.deliveredAt ?? item.createdAt))] ?? 60).replace(".", ",")}
+                  cliente={item.cliente}
+                  lote={Boolean(item.quantidade && item.quantidade > 1)}
+                  onClose={() => setEditId(null)}
+                />
+              ) : null}
+              {confirmId === item.id ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setConfirmId(null)} className="h-10 rounded-full border border-line text-sm">
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      useDelivery.getState().apagarComanda(item.id);
+                      setConfirmId(null);
+                    }}
+                    className="h-10 rounded-full bg-danger text-sm font-semibold text-ink"
+                  >
+                    Apagar
+                  </button>
+                </div>
+              ) : null}
             </article>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+function EditCard({
+  id,
+  dia,
+  valor,
+  quantidade,
+  arrancada,
+  cliente,
+  lote,
+  onClose,
+}: {
+  id: string;
+  dia: string;
+  valor: string;
+  quantidade: string;
+  arrancada: string;
+  cliente: string;
+  lote: boolean;
+  onClose: () => void;
+}) {
+  const [day, setDay] = useState(dia);
+  const [money, setMoney] = useState(valor);
+  const [count, setCount] = useState(quantidade);
+  const [startFee, setStartFee] = useState(arrancada);
+  const [name, setName] = useState(cliente);
+  const [error, setError] = useState("");
+
+  function save() {
+    const taxa = parseMoney(money);
+    if (!Number.isFinite(taxa) || taxa < 0) {
+      setError("Informe a taxa.");
+      return;
+    }
+    const arrancadaValor = startFee.trim() === "" ? 60 : parseMoney(startFee);
+    if (!Number.isFinite(arrancadaValor) || arrancadaValor < 0) {
+      setError("Informe a arrancada.");
+      return;
+    }
+    const qtdDia = Math.round(Number(count.replace(",", ".")));
+    if (lote && (!Number.isFinite(qtdDia) || qtdDia < 2)) {
+      setError("Informe a quantidade.");
+      return;
+    }
+    useDelivery.getState().editarComanda(id, {
+      dia: day,
+      valor: taxa,
+      quantidade: lote ? qtdDia : 1,
+      arrancada: arrancadaValor,
+      cliente: name,
+    });
+    onClose();
+  }
+
+  return (
+    <div className="mt-3 space-y-2 rounded-2xl border border-line bg-ink p-3">
+      <label className="block text-sm font-medium">
+        Dia
+        <input
+          type="date"
+          value={day}
+          onChange={(event) => setDay(event.target.value)}
+          className="mt-1 h-11 w-full rounded-2xl border border-line bg-surface px-3 text-base outline-none"
+        />
+      </label>
+      {lote ? (
+        <label className="block text-sm font-medium">
+          Quantidade
+          <input
+            value={count}
+            onChange={(event) => setCount(event.target.value)}
+            inputMode="numeric"
+            className="mt-1 h-11 w-full rounded-2xl border border-line bg-surface px-3 font-mono text-base outline-none"
+          />
+        </label>
+      ) : (
+        <label className="block text-sm font-medium">
+          Comanda
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="mt-1 h-11 w-full rounded-2xl border border-line bg-surface px-3 text-base outline-none"
+          />
+        </label>
+      )}
+      <label className="block text-sm font-medium">
+        {lote ? "Total das taxas" : "Taxa"}
+        <input
+          value={money}
+          onChange={(event) => setMoney(event.target.value)}
+          inputMode="decimal"
+          className="mt-1 h-11 w-full rounded-2xl border border-line bg-surface px-3 font-mono text-base outline-none"
+        />
+      </label>
+      <label className="block text-sm font-medium">
+        Arrancada do dia
+        <input
+          value={startFee}
+          onChange={(event) => setStartFee(event.target.value)}
+          inputMode="decimal"
+          className="mt-1 h-11 w-full rounded-2xl border border-line bg-surface px-3 font-mono text-base outline-none"
+        />
+      </label>
+      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={onClose} className="h-10 rounded-full border border-line text-sm">
+          Cancelar
+        </button>
+        <button type="button" onClick={save} className="h-10 rounded-full bg-signal text-sm font-semibold text-signal-ink">
+          Salvar
+        </button>
       </div>
     </div>
   );

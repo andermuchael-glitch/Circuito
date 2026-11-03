@@ -221,6 +221,8 @@ type Store = Persisted & {
     quantidade?: number;
     arrancada?: number;
   }) => void;
+  editarComanda: (id: string, input: { dia: string; valor: number; quantidade?: number; arrancada?: number; cliente?: string }) => void;
+  apagarComanda: (id: string) => void;
   cancelComanda: (id: string) => void;
   startCorrida: (ids: string[]) => void;
   markEntregue: (id: string) => void;
@@ -359,6 +361,58 @@ export const useDelivery = create<Store>()(
         toast.success(
           qtdDia > 1 ? `${qtdDia} comandas lançadas no dia` : registrar ? `${comanda.cliente} registrada no dia` : `${comanda.numero} entrou na fila`,
         );
+      },
+      editarComanda: (id, input) => {
+        const current = get().comandas.find((item) => item.id === id);
+        if (!current) return;
+        const [year, month, day] = input.dia.split("-").map(Number);
+        const when = new Date(year, (month || 1) - 1, day || 1, 12, 0, 0, 0).getTime();
+        const qtdDia = input.quantidade && input.quantidade > 1 ? Math.round(input.quantidade) : 1;
+        const oldKey = dayKey(new Date(current.deliveredAt ?? current.createdAt));
+        const next: Comanda = {
+          ...current,
+          valor: input.valor,
+          quantidade: qtdDia,
+          cliente: qtdDia > 1 ? `${qtdDia} comandas` : input.cliente?.trim() || current.cliente,
+          endereco: qtdDia > 1 ? "Lançamento do dia" : current.endereco,
+          status: current.deliveredAt || qtdDia > 1 ? "entregue" : current.status,
+          createdAt: current.deliveredAt || qtdDia > 1 ? when : current.createdAt,
+          deliveredAt: current.deliveredAt || qtdDia > 1 ? when : current.deliveredAt,
+        };
+        const arrancadas = { ...(get().arrancadas ?? {}) };
+        if (input.arrancada != null && Number.isFinite(input.arrancada)) arrancadas[input.dia] = input.arrancada;
+        const ficouNoDia = get().comandas.some(
+          (item) => item.id !== id && item.deliveredAt && dayKey(new Date(item.deliveredAt)) === oldKey,
+        );
+        if (oldKey !== input.dia && !ficouNoDia) delete arrancadas[oldKey];
+        set({
+          comandas: get().comandas.map((item) => (item.id === id ? next : item)),
+          arrancadas,
+          focusDay: next.deliveredAt ?? null,
+          tab: next.deliveredAt ? "km" : get().tab,
+        });
+        toast.success("Comanda atualizada");
+      },
+      apagarComanda: (id) => {
+        const current = get().comandas.find((item) => item.id === id);
+        if (!current) return;
+        const oldKey = current.deliveredAt ? dayKey(new Date(current.deliveredAt)) : null;
+        const comandas = get().comandas.filter((item) => item.id !== id);
+        const arrancadas = { ...(get().arrancadas ?? {}) };
+        if (oldKey && !comandas.some((item) => item.deliveredAt && dayKey(new Date(item.deliveredAt)) === oldKey)) {
+          delete arrancadas[oldKey];
+        }
+        set({
+          comandas,
+          arrancadas,
+          corridas: get().corridas.map((item) => ({
+            ...item,
+            ordem: item.ordem.filter((stop) => stop !== id),
+            feitas: item.feitas.filter((stop) => stop !== id),
+          })),
+          selectedId: get().selectedId === id ? null : get().selectedId,
+        });
+        toast.success("Comanda apagada");
       },
       cancelComanda: (id) => {
         set({
