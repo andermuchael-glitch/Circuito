@@ -43,7 +43,7 @@ export function App() {
   }, []);
 
   return (
-    <div className="flex h-dvh flex-col bg-bg text-paper">
+    <div className="app-shell flex h-dvh flex-col bg-bg text-paper">
       <LiveEngine />
       <RouteEngine />
       <Toaster
@@ -98,7 +98,7 @@ function Header() {
   return (
     <header
       className={cn(
-        "h-14 shrink-0 items-center justify-between gap-3 border-b border-line px-3",
+        "min-h-14 shrink-0 items-center justify-between gap-2 border-b border-line px-3 py-2",
         tab === "mapa" ? "hidden md:flex" : "flex",
       )}
     >

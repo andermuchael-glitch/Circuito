@@ -71,24 +71,24 @@ export function MapView() {
       const L = resolveLeaflet(leafletMod);
       leafletRef.current = L;
       const here = useDelivery.getState().gaze ?? useDelivery.getState().base;
-      const map = L.map(hostRef.current, { zoomControl: false, attributionControl: true }).setView(
+      const map = L.map(hostRef.current, { zoomControl: false, attributionControl: false }).setView(
         here ? [here.lat, here.lng] : [-15.8, -47.9],
         here ? 16 : 4,
       );
       const gl = glMod.maplibreGL({
-        style: "https://tiles.openfreemap.org/styles/liberty",
+        style: "https://tiles.openfreemap.org/styles/bright",
         attributionControl: false,
       });
       gl.addTo(map);
-      map.attributionControl.setPrefix(false);
-      map.attributionControl.addAttribution(
-        '&copy; <a href="https://openfreemap.org">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      );
-      crumbRef.current = L.polyline([], { color: "#8d97a5", weight: 6, opacity: 0.9 }).addTo(map);
+      L.control
+        .attribution({ position: "bottomleft", prefix: false })
+        .addAttribution('OpenFreeMap · OpenStreetMap')
+        .addTo(map);
+      crumbRef.current = L.polyline([], { color: "#ffffff", weight: 11, opacity: 0.9 }).addTo(map);
       planRef.current = L.polyline([], {
         color: "#1a73e8",
-        weight: 7,
-        opacity: 0.95,
+        weight: 6,
+        opacity: 1,
         lineCap: "round",
         lineJoin: "round",
       }).addTo(map);
@@ -228,9 +228,9 @@ export function MapView() {
       const liveDot = state.liveStatus === "ativo" && !simulating;
       const icon = L.divIcon({
         className: "pin-wrap",
-        html: `<div class="car-chevron${liveDot ? " rider-pulse" : ""}" style="transform: rotate(${heading}deg)"></div>`,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
+        html: `<div class="nav-puck${liveDot ? " rider-pulse" : ""}" style="transform: rotate(${heading}deg)"><span></span></div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
       });
       if (!riderRef.current) {
         riderRef.current = L.marker([riderAt.lat, riderAt.lng], { icon, zIndexOffset: 800 }).addTo(map);

@@ -73,6 +73,10 @@
   scrollbar-color: var(--color-line) transparent;
 }
 
+.app-shell {
+  padding-top: env(safe-area-inset-top);
+}
+
 .dock {
   padding-bottom: max(0.4rem, env(safe-area-inset-bottom));
 }
@@ -86,14 +90,18 @@
 }
 
 .leaflet-bottom {
-  bottom: 11rem;
+  bottom: 10.5rem;
 }
 
 .leaflet-control-attribution {
-  background: color-mix(in srgb, white 86%, transparent) !important;
+  background: color-mix(in srgb, white 90%, transparent) !important;
   color: #243128 !important;
   font-size: 10px !important;
-  max-width: 70%;
+  line-height: 1.2;
+  padding: 2px 6px !important;
+  border-radius: 999px;
+  margin: 0 0 0 8px !important;
+  box-shadow: none !important;
 }
 
 .leaflet-control-attribution a {
@@ -155,14 +163,24 @@
   letter-spacing: 0.04em;
 }
 
-.car-chevron {
+.nav-puck {
+  display: grid;
+  height: 36px;
+  width: 36px;
+  place-items: center;
+  border-radius: 999px;
+  border: 3px solid #1a73e8;
+  background: #07110c;
+  box-shadow: 0 4px 12px rgba(7, 17, 12, 0.35);
+}
+
+.nav-puck span {
   width: 0;
   height: 0;
-  margin: 3px auto 0;
-  border-left: 11px solid transparent;
-  border-right: 11px solid transparent;
-  border-bottom: 24px solid #f5f7fb;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.7));
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 13px solid #f5f7fb;
+  margin-top: -2px;
 }
 
 .rider-pulse {
