@@ -176,7 +176,7 @@ export function MapView() {
         L.DomEvent.stopPropagation(event);
         if (useDelivery.getState().mapPick) return;
         useDelivery.getState().select(comanda.id);
-        useDelivery.getState().setTab("mapa");
+        useDelivery.getState().setFollow(false);
       });
       marker.addTo(pins);
     }
