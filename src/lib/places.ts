@@ -177,7 +177,7 @@ async function fetchPhoton(query: string, near?: LatLng | null) {
       props.state,
     ].filter(Boolean).join(", ");
     if (!label) return [];
-    return [{ label, lat, lng }];
+    return [{ label, lat, lng, city: props.city ?? props.district ?? "" }];
   });
 }
 
