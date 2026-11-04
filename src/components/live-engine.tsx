@@ -9,6 +9,7 @@ export function LiveEngine() {
   const modo = useDelivery((state) => corridaAtiva(state)?.modo ?? null);
   const ativaId = useDelivery((state) => state.ativaId);
   const simToken = useDelivery((state) => state.simToken);
+  const nativeRun = useDelivery((state) => corridaAtiva(state)?.modo === "gps" && corridaAtiva(state)?.status === "ativa");
 
   useEffect(() => {
     const sync = () => {
@@ -28,6 +29,13 @@ export function LiveEngine() {
       void releaseScreen();
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.Circuito?.startLocationTracking) {
+      if (live && nativeRun) window.Circuito.startLocationTracking();
+      else window.Circuito.stopLocationTracking?.();
+    }
+  }, [live, nativeRun, ativaId, modo]);
 
   useEffect(() => {
     if (!live) return;
@@ -77,6 +85,33 @@ export function LiveEngine() {
       );
     };
 
+    const nativeBridge = typeof window !== "undefined" ? window.Circuito : undefined;
+    if (nativeBridge?.startLocationTracking) {
+      const onNativeFix = (event: Event) => {
+        const detail = (event as CustomEvent<{ latitude: number; longitude: number; accuracy: number; speed: number; time: number }>).detail;
+        if (!detail || !Number.isFinite(detail.latitude) || !Number.isFinite(detail.longitude)) return;
+        onFix({
+          coords: { latitude: detail.latitude, longitude: detail.longitude, accuracy: detail.accuracy, speed: detail.speed },
+          timestamp: detail.time || Date.now(),
+        } as GeolocationPosition);
+      };
+      const drainNative = () => {
+        try {
+          const pending = JSON.parse(nativeBridge.consumeLocationPoints?.() || "[]") as Array<{ latitude: number; longitude: number; accuracy: number; speed: number; time: number }>;
+          for (const detail of pending) onNativeFix(new CustomEvent("circuito-native-location", { detail }));
+        } catch {
+          // Ignore invalid local queue data; live GPS continues.
+        }
+      };
+      window.addEventListener("circuito-native-location", onNativeFix);
+      document.addEventListener("visibilitychange", drainNative);
+      drainNative();
+      return () => {
+        window.removeEventListener("circuito-native-location", onNativeFix);
+        document.removeEventListener("visibilitychange", drainNative);
+      };
+    }
+
     const watch = navigator.geolocation.watchPosition(onFix, onErr, {
       enableHighAccuracy: true,
       maximumAge: 1000,
@@ -97,7 +132,7 @@ export function LiveEngine() {
       navigator.geolocation.clearWatch(watch);
       window.clearInterval(poll);
     };
-  }, [live, liveAttempt]);
+  }, [live, liveAttempt, nativeRun]);
 
   useEffect(() => {
     if (modo !== "simulacao" || !ativaId) return;
