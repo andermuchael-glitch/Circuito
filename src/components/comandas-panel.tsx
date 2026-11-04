@@ -21,6 +21,7 @@ export function ComandasPanel() {
   const comandas = useDelivery((state) => state.comandas);
   const arrancadas = useDelivery((state) => state.arrancadas);
   const [filter, setFilter] = useState<(typeof filters)[number]["id"]>("todas");
+  const [selectedDay, setSelectedDay] = useState(() => dayKey(new Date()));
   const [query, setQuery] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -28,6 +29,7 @@ export function ComandasPanel() {
 
   const list = useMemo(() => {
     return comandas
+      .filter((item) => dayKey(new Date(item.deliveredAt ?? item.createdAt)) === selectedDay)
       .filter((item) => matches(item.status, filter))
       .filter((item) => {
         if (!needle) return true;
@@ -35,14 +37,14 @@ export function ComandasPanel() {
       })
       .slice()
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [comandas, filter, needle]);
+  }, [comandas, filter, needle, selectedDay]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between gap-3 px-4 pt-4">
         <div>
           <h1 className="font-display text-3xl leading-none tracking-wide">COMANDAS</h1>
-          <p className="mt-1 text-sm text-muted">Cada pedido entra na fila. A base é a Rua 904.</p>
+          <p className="mt-1 text-sm text-muted">Exibindo somente as comandas do dia selecionado.</p>
         </div>
         <button
           type="button"
@@ -63,6 +65,16 @@ export function ComandasPanel() {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Comanda ou endereço"
             className="h-full w-full bg-transparent text-base text-paper outline-none placeholder:text-muted"
+          />
+        </label>
+        <label className="mt-3 block text-sm font-medium text-muted">
+          Consultar dia
+          <input
+            type="date"
+            value={selectedDay}
+            max={dayKey(new Date())}
+            onChange={(event) => setSelectedDay(event.target.value)}
+            className="mt-1 h-11 w-full rounded-2xl border border-line bg-ink px-3 text-base text-paper outline-none"
           />
         </label>
         <div className="mt-3 flex gap-2">
