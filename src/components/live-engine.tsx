@@ -3,6 +3,16 @@ import { buildSimPath, corridaAtiva, isDefaultBase, BASE_HOME, useDelivery } fro
 import { holdScreen, releaseScreen } from "@/lib/screen";
 import { toast } from "sonner";
 
+declare global {
+  interface Window {
+    Circuito?: {
+      startLocationTracking?: () => void;
+      stopLocationTracking?: () => void;
+      consumeLocationPoints?: () => string;
+    };
+  }
+}
+
 export function LiveEngine() {
   const live = useDelivery((state) => state.live);
   const liveAttempt = useDelivery((state) => state.liveAttempt);
