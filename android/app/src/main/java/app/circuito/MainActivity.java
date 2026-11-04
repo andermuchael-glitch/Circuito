@@ -132,6 +132,12 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean hasLocationPermission() {
+            return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        }
+
+        @JavascriptInterface
         public void startLocationTracking() {
             runOnUiThread(() -> {
                 if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
