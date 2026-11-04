@@ -188,14 +188,16 @@ export function RotaPanel() {
         ) : null}
 
         {selected.length > 0 ? (
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-semibold tracking-wide text-muted">ESCOLHA O APLICATIVO DE NAVEGAÇÃO</p>
+            <div className="grid grid-cols-2 gap-2">
             <a
               href={wazeLink(selected[0].endereco)}
               target="_blank"
               rel="noreferrer"
               className="inline-flex h-12 items-center justify-center rounded-full border border-line text-sm font-semibold"
             >
-              Waze
+              Waze · 1ª parada
             </a>
             <a
               href={googleRouteLink(origin.endereco, selected.map((item) => item.endereco))}
@@ -203,8 +205,9 @@ export function RotaPanel() {
               rel="noreferrer"
               className="inline-flex h-12 items-center justify-center rounded-full border border-line text-sm font-semibold"
             >
-              Google Maps
+              Google Maps · rota completa
             </a>
+            </div>
           </div>
         ) : null}
 
