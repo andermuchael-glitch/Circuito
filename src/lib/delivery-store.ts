@@ -119,7 +119,7 @@ export function isDefaultBase(base: BasePin | null) {
 }
 
 function seed(): Persisted {
-  return { comandas: [], corridas: [], ativaId: null, tab: "mapa", seq: 1000, base: BASE_HOME, arrancadas: {} };
+  return { comandas: [], corridas: [], ativaId: null, tab: "comandas", seq: 1000, base: BASE_HOME, arrancadas: {} };
 }
 
 export function partida(state: { base: BasePin | null; gaze: { lat: number; lng: number } | null }): BasePin {
@@ -453,7 +453,7 @@ export const useDelivery = create<Store>()(
           comandas: get().comandas.map((item) =>
             ids.includes(item.id) ? { ...item, status: "rota" } : item,
           ),
-          tab: "mapa",
+          tab: "rota",
           fitToken: get().fitToken + 1,
           follow: false,
           previewIds: [],
@@ -534,7 +534,7 @@ export const useDelivery = create<Store>()(
         set({
           gpsError: null,
           follow: modo === "parado" ? get().follow : true,
-          tab: modo === "parado" ? get().tab : "mapa",
+          tab: modo === "parado" ? get().tab : "rota",
           simToken: modo === "simulacao" ? get().simToken + 1 : get().simToken,
           fitToken: modo === "parado" ? get().fitToken : get().fitToken + 1,
           corridas: replaceCorrida(get().corridas, next),
@@ -640,6 +640,7 @@ export const useDelivery = create<Store>()(
         useDelivery.setState({
           hydrated: true,
           corridas,
+          tab: state.tab === "mapa" ? "comandas" : state.tab,
           base: state.base?.endereco === BASE_HOME.endereco ? state.base : BASE_HOME,
           arrancadas: state.arrancadas ?? {},
           mapPick: false,
