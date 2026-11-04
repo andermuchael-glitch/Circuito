@@ -5,6 +5,7 @@ import { comPin, corridaAtiva, nextStop, partida, useDelivery, type Comanda } fr
 import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, waLink, wazeLink } from "@/lib/format";
 import { haversine, optimizeOrder, straightKm } from "@/lib/geo";
 import { holdScreen } from "@/lib/screen";
+import { MapView } from "@/components/map-view";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/cn";
 
@@ -83,6 +84,11 @@ export function RotaPanel() {
         <p className="mt-1 text-sm text-muted">
           A rota sai da {origin.endereco}, passa nas entregas e volta para a base. As ruas abrem no Waze ou no Google Maps.
         </p>
+
+        <section className="mt-4 overflow-hidden rounded-2xl border border-line bg-surface">
+          <div className="px-3 py-2"><p className="text-sm font-semibold">Prévia do mapa</p><p className="text-xs text-muted">Confira sua posição e as paradas antes de iniciar</p></div>
+          <div className="relative h-64 w-full"><MapView /></div>
+        </section>
 
         <div className="mt-4 flex gap-2">
           <button
@@ -256,6 +262,14 @@ export function RotaPanel() {
         <Stat label="Restam" value={String(run.ordem.length - run.feitas.length)} />
         <Stat label="km/h" value={speed} />
       </dl>
+
+      <section className="mt-4 overflow-hidden rounded-2xl border border-line bg-surface">
+        <div className="flex items-center justify-between px-3 py-2">
+          <div><p className="text-sm font-semibold">Mapa da rota</p><p className="text-xs text-muted">OpenStreetMap · posição pelo GPS</p></div>
+          <span className={cn("rounded-full px-2 py-1 text-xs", liveStatus === "ativo" ? "bg-go/15 text-go" : "bg-raised text-muted")}>{liveStatus === "ativo" ? "GPS ativo" : "Aguardando GPS"}</span>
+        </div>
+        <div className="relative h-64 w-full"><MapView /></div>
+      </section>
 
       {gpsError ? <p className="mt-3 rounded-2xl bg-raised px-3 py-2 text-sm text-danger">{gpsError}</p> : null}
       {run.modo === "gps" && gpsMeta.weak ? (
