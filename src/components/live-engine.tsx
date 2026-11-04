@@ -9,6 +9,7 @@ declare global {
       startLocationTracking?: () => void;
       stopLocationTracking?: () => void;
       consumeLocationPoints?: () => string;
+      hasLocationPermission?: () => boolean;
     };
   }
 }
@@ -96,7 +97,7 @@ export function LiveEngine() {
     };
 
     const nativeBridge = typeof window !== "undefined" ? window.Circuito : undefined;
-    if (nativeBridge?.startLocationTracking) {
+    if (nativeBridge?.startLocationTracking && nativeBridge.hasLocationPermission?.()) {
       const onNativeFix = (event: Event) => {
         const detail = (event as CustomEvent<{ latitude: number; longitude: number; accuracy: number; speed: number; time: number }>).detail;
         if (!detail || !Number.isFinite(detail.latitude) || !Number.isFinite(detail.longitude)) return;
