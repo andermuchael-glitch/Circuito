@@ -14,7 +14,7 @@ function diaHoje() {
 
 export function ComandaForm() {
   const draft = useDelivery((state) => state.draft);
-  const near = useDelivery((state) => state.base);
+  const near = useDelivery((state) => state.gaze ?? state.base);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [marcar, setMarcar] = useState(false);
@@ -103,13 +103,19 @@ export function ComandaForm() {
     if (lat == null || lng == null) {
       setBusy(true);
       try {
-        const found = await searchNominatim(enderecoFinal, near);
-        const first = found[0];
-        if (!first) {
+        const found = hits.length ? hits : await searchNominatim(enderecoFinal, near);
+        if (!found.length) {
           setError("Endereço não encontrado. Escolha uma sugestão ou marque no mapa.");
           setBusy(false);
           return;
         }
+        if (found.length > 1) {
+          setHits(found);
+          setError("Encontrei mais de um local. Escolha o endereço correto na lista antes de salvar.");
+          setBusy(false);
+          return;
+        }
+        const first = found[0];
         lat = first.lat;
         lng = first.lng;
         enderecoFinal = addressWithNumber(current.endereco, first.label);
