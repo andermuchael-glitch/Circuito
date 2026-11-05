@@ -30,7 +30,13 @@ function lineData(points: LatLng[]): FeatureCollection {
 function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") {
   const el = document.createElement("div");
   el.className = `circuito-map-marker circuito-map-marker-${kind}`;
-  el.textContent = label;
+  if (kind === "rider") {
+    const symbol = document.createElement("span");
+    symbol.textContent = label;
+    el.appendChild(symbol);
+  } else {
+    el.textContent = label;
+  }
   return el;
 }
 
