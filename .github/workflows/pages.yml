@@ -31,6 +31,7 @@ jobs:
           node scripts/finalize-pages.mjs
         env:
           NITRO_PRESET: github_pages
+          VITE_TOMTOM_API_KEY: ${{ secrets.VITE_TOMTOM_API_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .output/public
