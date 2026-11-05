@@ -51,6 +51,7 @@ export function MapView() {
   const fitted = useRef(-1);
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState("");
+  const [mapRetry, setMapRetry] = useState(0);
   const [threeD, setThreeD] = useState(false);
   const follow = useDelivery((state) => state.follow);
   const tab = useDelivery((state) => state.tab);
@@ -79,6 +80,10 @@ export function MapView() {
     const host = hostRef.current;
     if (!host) return;
     let disposed = false;
+    let loaded = false;
+    const loadTimeout = window.setTimeout(() => {
+      if (!disposed && !loaded) setMapError("O mapa demorou para responder. Verifique a conexão e toque em Tentar novamente.");
+    }, 12000);
     const initial = useDelivery.getState().gaze ?? useDelivery.getState().base ?? { lat: -26.99, lng: -48.64 };
     const map = new MapLibreMap({
       container: host,
@@ -109,7 +114,8 @@ export function MapView() {
     });
     map.on("load", () => {
       if (disposed) return;
-      setMapError("");
+      loaded = true;
+      window.clearTimeout(loadTimeout);
       map.addSource("circuito-route", { type: "geojson", data: lineData([]) });
       map.addLayer({
         id: "circuito-route-casing",
@@ -136,6 +142,7 @@ export function MapView() {
     resize.observe(host);
     return () => {
       disposed = true;
+      window.clearTimeout(loadTimeout);
       resize.disconnect();
       markersRef.current.forEach((marker) => marker.remove());
       riderRef.current?.remove();
@@ -145,7 +152,7 @@ export function MapView() {
       markersRef.current = [];
       setReady(false);
     };
-  }, []);
+  }, [mapRetry]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -246,9 +253,10 @@ export function MapView() {
     <div className="relative h-full w-full">
       <div ref={hostRef} className="absolute inset-0" />
       {mapError ? (
-        <div className="absolute bottom-3 left-3 right-16 z-20 rounded-xl border border-danger bg-bg/95 px-3 py-2 text-xs text-paper shadow-lg">
-          <strong className="block text-danger">Não foi possível carregar o mapa</strong>
-          <span>{mapError}</span>
+        <div role="alert" className="absolute bottom-3 left-3 right-16 z-30 rounded-2xl border border-danger bg-bg px-4 py-4 text-sm leading-relaxed text-paper shadow-xl">
+          <strong className="mb-2 block text-base text-danger">Não foi possível carregar o mapa</strong>
+          <p className="break-words">{mapError}</p>
+          <button type="button" className="mt-3 rounded-xl border border-line px-4 py-2 font-semibold" onClick={() => { setMapError(""); setReady(false); setMapRetry((value) => value + 1); }}>Tentar novamente</button>
         </div>
       ) : null}
       <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
