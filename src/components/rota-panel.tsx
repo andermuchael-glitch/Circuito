@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, CornerUpLeft, CornerUpRight, Maximize2, Minimize2, Navigation, Play, Square, Volume2, VolumeX } from "lucide-react";
 import { GhostButton, PrimaryButton, payName } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
@@ -29,7 +29,7 @@ export function RotaPanel() {
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const lastSpokenCue = useState<{ current: string }>({ current: "" })[0];
+  const lastSpokenCue = useRef("");
 
   const abertas = comandas.filter(comPin).filter((item) => item.status === "aberta");
   const selected = order
