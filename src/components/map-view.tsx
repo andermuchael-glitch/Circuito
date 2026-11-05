@@ -91,19 +91,9 @@ export function MapView() {
     const initial = useDelivery.getState().gaze ?? useDelivery.getState().base ?? { lat: -26.99, lng: -48.64 };
     const map = new MapLibreMap({
       container: host,
-      style: {
-        version: 8,
-        sources: {
-          "circuito-osm": {
-            type: "raster",
-            tiles: ["https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors · © <a href="https://carto.com/attributions">CARTO</a>',
-            maxzoom: 19,
-          },
-        },
-        layers: [{ id: "circuito-osm", type: "raster", source: "circuito-osm" }],
-      },
+      // OpenFreeMap: estilo vetorial gratuito, sem chave de API.
+      // O próprio MapLibre inclui a atribuição OpenMapTiles/OpenStreetMap.
+      style: "https://tiles.openfreemap.org/styles/liberty",
       center: [initial.lng, initial.lat],
       zoom: 15,
       pitch: 0,
