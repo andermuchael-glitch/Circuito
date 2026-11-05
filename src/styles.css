@@ -213,3 +213,62 @@
     box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-go) 0%, transparent);
   }
 }
+
+
+/* Marcadores do mapa MapLibre */
+.circuito-map-marker {
+  display: grid;
+  place-items: center;
+  border: 2px solid #07110c;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.38);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  user-select: none;
+}
+.circuito-map-marker-stop {
+  width: 34px;
+  height: 34px;
+  background: #3dcc7a;
+  color: #07110c;
+  font-size: 13px;
+}
+.circuito-map-marker-stop.is-next {
+  width: 42px;
+  height: 42px;
+  border: 3px solid #ffb020;
+  background: #07110c;
+  color: #ffb020;
+}
+.circuito-map-marker-done {
+  width: 30px;
+  height: 30px;
+  background: #8eae98;
+  color: #07110c;
+}
+.circuito-map-marker-base {
+  padding: 5px 7px;
+  border-radius: 8px;
+  background: #07110c;
+  border-color: #ffb020;
+  color: #ffb020;
+  font-size: 10px;
+}
+.circuito-map-marker-rider {
+  width: 48px;
+  height: 48px;
+  border: 3px solid #ffffff;
+  background: #1677ed;
+  color: white;
+  font-size: 27px;
+  transform: rotate(var(--rider-heading, 0deg));
+  z-index: 20;
+}
+.maplibregl-ctrl-attrib {
+  margin: 0 0 10px 10px !important;
+  padding: 3px 7px !important;
+  border-radius: 999px;
+  background: rgba(255,255,255,.9) !important;
+  color: #243128 !important;
+  font-size: 10px !important;
+}
