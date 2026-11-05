@@ -78,13 +78,9 @@ export function MapView() {
       center: [initial.lng, initial.lat],
       zoom: 15,
       pitch: 0,
-      attributionControl: false,
+      attributionControl: true,
       maxPitch: 60,
     });
-    map.addControl(new (class {
-      onAdd() { const el = document.createElement("div"); el.className = "maplibregl-ctrl maplibregl-ctrl-attrib"; el.textContent = "© OpenFreeMap · © OpenStreetMap"; return el; }
-      onRemove() {}
-    })(), "bottom-left");
     map.on("load", () => {
       if (disposed) return;
       map.addSource("circuito-route", { type: "geojson", data: lineData([]) });
