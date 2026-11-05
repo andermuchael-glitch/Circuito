@@ -69,8 +69,15 @@ export function LiveEngine() {
       store.setGpsMeta({
         accuracy,
         speed,
-        weak: accuracy != null && accuracy > 40,
+        weak: accuracy != null && accuracy > 35,
       });
+      // Não mover o marcador nem recalcular a rota com uma leitura GPS imprecisa.
+      // Isso evita que o ponto de entrega seja confundido com a posição real.
+      if (accuracy != null && accuracy > 65) {
+        store.setLiveStatus("buscando");
+        store.setGpsError(`Precisão do GPS baixa (±${Math.round(accuracy)} m). Aguardando uma posição melhor.`);
+        return;
+      }
       store.setLiveStatus("ativo");
       store.setGpsError(null);
       store.setGaze(point);
