@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Map as MapLibreMap, Marker, type GeoJSONSource } from "maplibre-gl";
+import MapLibreWorker from "maplibre-gl/dist/maplibre-gl-csp-worker?worker";
 import { Home, LocateFixed, Maximize2, Crosshair, Layers2 } from "lucide-react";
 import { IconButton } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, partida, useDelivery } from "@/lib/delivery-store";
 import { bearing, type LatLng } from "@/lib/geo";
 import { startOfToday } from "@/lib/format";
 import "maplibre-gl/dist/maplibre-gl.css";
+
+// Empacota o worker pelo Vite para respeitar o base path do GitHub Pages.
+MapLibreMap.workerClass = MapLibreWorker;
 
 
 type FeatureCollection = {
