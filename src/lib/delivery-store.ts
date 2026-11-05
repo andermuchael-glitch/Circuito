@@ -455,7 +455,7 @@ export const useDelivery = create<Store>()(
           ),
           tab: "rota",
           fitToken: get().fitToken + 1,
-          follow: false,
+          follow: true,
           previewIds: [],
           gpsError: null,
           nearId: null,
