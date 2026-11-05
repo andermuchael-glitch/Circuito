@@ -235,7 +235,7 @@ export function RotaPanel() {
 
         {selected.length > 0 ? (
           <div className="mt-4">
-            <p className="mb-2 text-xs font-semibold tracking-wide text-muted">ESCOLHA O APLICATIVO DE NAVEGAÇÃO</p>
+            <p className="mb-2 text-xs font-semibold tracking-wide text-muted">OU NAVEGUE COM OUTRO APLICATIVO</p>
             <div className="grid grid-cols-2 gap-2">
             <a
               href={wazeLink(selected[0].endereco)}
@@ -266,7 +266,7 @@ export function RotaPanel() {
               setOrder([]);
             }}
           >
-            Sair para entregar
+            Iniciar navegação no Circuito
           </PrimaryButton>
         </div>
       </div>
