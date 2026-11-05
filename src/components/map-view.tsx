@@ -1,50 +1,61 @@
 import { useEffect, useRef, useState } from "react";
-import { setWorkerUrl } from "maplibre-gl";
-import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import { Crosshair, Home, LocateFixed, Maximize2 } from "lucide-react";
+import { Map as MapLibreMap, Marker, type GeoJSONSource } from "maplibre-gl";
+import { Home, LocateFixed, Maximize2, Crosshair, Layers2 } from "lucide-react";
 import { IconButton } from "@/components/bits";
-import { comPin, corridaAtiva, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
-import { bearing, haversine, type LatLng } from "@/lib/geo";
+import { comPin, corridaAtiva, nextStop, partida, useDelivery } from "@/lib/delivery-store";
+import { bearing, type LatLng } from "@/lib/geo";
 import { startOfToday } from "@/lib/format";
+import "maplibre-gl/dist/maplibre-gl.css";
 
-setWorkerUrl(workerUrl);
+type FeatureCollection = {
+  type: "FeatureCollection";
+  features: Array<{
+    type: "Feature";
+    properties: Record<string, never>;
+    geometry: { type: "LineString"; coordinates: [number, number][] };
+  }>;
+};
 
-type LeafletNS = typeof import("leaflet");
+function lineData(points: LatLng[]): FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: points.length > 1 ? [{
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: points.map((point) => [point.lng, point.lat]) },
+    }] : [],
+  };
+}
 
-function resolveLeaflet(mod: LeafletNS & { default?: LeafletNS }) {
-  if (mod.default && typeof mod.default.map === "function") return mod.default;
-  return mod;
+function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") {
+  const el = document.createElement("div");
+  el.className = `circuito-map-marker circuito-map-marker-${kind}`;
+  el.textContent = label;
+  return el;
 }
 
 export function MapView() {
   const hostRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<import("leaflet").Map | null>(null);
-  const leafletRef = useRef<LeafletNS | null>(null);
-  const crumbRef = useRef<import("leaflet").Polyline | null>(null);
-  const planRef = useRef<import("leaflet").Polyline | null>(null);
-  const riderRef = useRef<import("leaflet").Marker | null>(null);
-  const pinsRef = useRef<import("leaflet").LayerGroup | null>(null);
-  const accRef = useRef<import("leaflet").Circle | null>(null);
-  const prevGaze = useRef<LatLng | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const markersRef = useRef<Marker[]>([]);
+  const riderRef = useRef<Marker | null>(null);
+  const previousPosition = useRef<LatLng | null>(null);
   const headingRef = useRef(0);
-  const homed = useRef(false);
   const fitted = useRef(-1);
+  const [ready, setReady] = useState(false);
+  const [threeD, setThreeD] = useState(false);
   const follow = useDelivery((state) => state.follow);
   const tab = useDelivery((state) => state.tab);
-  const [ready, setReady] = useState(false);
+  const liveStatus = useDelivery((state) => state.liveStatus);
 
   const tick = useDelivery((state) => {
     const run = corridaAtiva(state);
-    const statuses = state.comandas
-      .map((item) => `${item.id}:${item.status}:${item.lat ?? "s"}`)
-      .join("|");
     return [
-      statuses,
-      state.selectedId ?? "",
+      state.comandas.map((item) => `${item.id}:${item.status}:${item.lat ?? "s"}:${item.lng ?? "s"}`).join("|"),
       state.gaze ? `${state.gaze.lat.toFixed(5)},${state.gaze.lng.toFixed(5)}` : "",
       state.liveStatus,
       state.gpsMeta.accuracy == null ? "" : String(Math.round(state.gpsMeta.accuracy)),
-      state.base ? `${state.base.lat.toFixed(4)},${state.base.lng.toFixed(4)}` : "",
+      state.base ? `${state.base.lat.toFixed(5)},${state.base.lng.toFixed(5)}` : "",
       run?.id ?? "",
       run?.ordem.join(",") ?? "",
       run?.feitas.join(",") ?? "",
@@ -57,302 +68,168 @@ export function MapView() {
   });
 
   useEffect(() => {
-    let dead = false;
-    let observer: ResizeObserver | null = null;
     const host = hostRef.current;
     if (!host) return;
-
-    void (async () => {
-      const [leafletMod, glMod] = await Promise.all([
-        import("leaflet") as Promise<LeafletNS & { default?: LeafletNS }>,
-        import("@maplibre/maplibre-gl-leaflet"),
-      ]);
-      if (dead || !hostRef.current) return;
-      const L = resolveLeaflet(leafletMod);
-      leafletRef.current = L;
-      const here = useDelivery.getState().gaze ?? useDelivery.getState().base;
-      const map = L.map(hostRef.current, { zoomControl: false, attributionControl: false }).setView(
-        here ? [here.lat, here.lng] : [-15.8, -47.9],
-        here ? 16 : 4,
-      );
-      const gl = glMod.maplibreGL({
-        style: "https://tiles.openfreemap.org/styles/bright",
-        attributionControl: false,
+    let disposed = false;
+    const initial = useDelivery.getState().gaze ?? useDelivery.getState().base ?? { lat: -26.99, lng: -48.64 };
+    const map = new MapLibreMap({
+      container: host,
+      style: "https://tiles.openfreemap.org/styles/bright",
+      center: [initial.lng, initial.lat],
+      zoom: 15,
+      pitch: 0,
+      attributionControl: false,
+      maxPitch: 60,
+    });
+    map.addControl(new (class {
+      onAdd() { const el = document.createElement("div"); el.className = "maplibregl-ctrl maplibregl-ctrl-attrib"; el.textContent = "© OpenFreeMap · © OpenStreetMap"; return el; }
+      onRemove() {}
+    })(), "bottom-left");
+    map.on("load", () => {
+      if (disposed) return;
+      map.addSource("circuito-route", { type: "geojson", data: lineData([]) });
+      map.addLayer({
+        id: "circuito-route-casing",
+        type: "line",
+        source: "circuito-route",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#ffffff", "line-width": 10, "line-opacity": 0.92 },
       });
-      gl.addTo(map);
-      L.control
-        .attribution({ position: "bottomleft", prefix: false })
-        .addAttribution('OpenFreeMap · OpenStreetMap')
-        .addTo(map);
-      crumbRef.current = L.polyline([], { color: "#ffffff", weight: 11, opacity: 0.9 }).addTo(map);
-      planRef.current = L.polyline([], {
-        color: "#1a73e8",
-        weight: 6,
-        opacity: 1,
-        lineCap: "round",
-        lineJoin: "round",
-      }).addTo(map);
-      pinsRef.current = L.layerGroup().addTo(map);
-      map.on("click", (event) => {
-        const store = useDelivery.getState();
-        if (!store.mapPick) return;
-        store.dropPin({ lat: event.latlng.lat, lng: event.latlng.lng });
+      map.addLayer({
+        id: "circuito-route-line",
+        type: "line",
+        source: "circuito-route",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#1677ed", "line-width": 6 },
       });
-      if (dead) {
-        map.remove();
-        return;
-      }
-      mapRef.current = map;
-      observer = new ResizeObserver(() => map.invalidateSize());
-      observer.observe(hostRef.current);
       setReady(true);
-      window.setTimeout(() => map.invalidateSize(), 80);
-    })();
-
+    });
+    map.on("click", (event) => {
+      const state = useDelivery.getState();
+      if (state.mapPick) state.dropPin({ lat: event.lngLat.lat, lng: event.lngLat.lng });
+    });
+    mapRef.current = map;
+    const resize = new ResizeObserver(() => map.resize());
+    resize.observe(host);
     return () => {
-      dead = true;
-      observer?.disconnect();
-      mapRef.current?.remove();
+      disposed = true;
+      resize.disconnect();
+      markersRef.current.forEach((marker) => marker.remove());
+      riderRef.current?.remove();
+      map.remove();
       mapRef.current = null;
-      crumbRef.current = null;
-      planRef.current = null;
       riderRef.current = null;
-      pinsRef.current = null;
-      accRef.current = null;
+      markersRef.current = [];
       setReady(false);
     };
   }, []);
 
   useEffect(() => {
-    if (!ready) return;
     const map = mapRef.current;
-    const L = leafletRef.current;
-    const pins = pinsRef.current;
-    const crumb = crumbRef.current;
-    const plan = planRef.current;
-    if (!map || !L || !pins || !crumb || !plan) return;
-
+    if (!ready || !map) return;
     const state = useDelivery.getState();
     const run = corridaAtiva(state);
     const upcoming = nextStop(run, state.comandas);
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const today = startOfToday();
 
-    pins.clearLayers();
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = [];
+
     if (state.base) {
-      const baseIcon = L.divIcon({
-        className: "pin-wrap",
-        html: `<div class="pin pin-base">BASE</div>`,
-        iconSize: [44, 28],
-        iconAnchor: [22, 14],
-      });
-      L.marker([state.base.lat, state.base.lng], { icon: baseIcon, zIndexOffset: 100 }).addTo(pins);
+      markersRef.current.push(new Marker({ element: markerElement("BASE", "base"), anchor: "center" })
+        .setLngLat([state.base.lng, state.base.lat]).addTo(map));
     }
 
-    const today = startOfToday();
     const visible = state.comandas.filter(comPin).filter((item) => {
       if (item.status === "cancelada") return false;
       if (item.status !== "entregue") return true;
       return (item.deliveredAt ?? 0) >= today || Boolean(run?.ordem.includes(item.id));
     });
-    for (const comanda of visible) {
-      const order = run?.ordem.indexOf(comanda.id) ?? -1;
-      const isNext = upcoming?.id === comanda.id;
-      const cls = isNext
-        ? "pin-next"
-        : comanda.status === "entregue"
-          ? "pin-done"
-          : comanda.status === "rota"
-            ? "pin-route"
-            : "pin-open";
-      const label = order >= 0 ? String(order + 1) : "";
-      const icon = L.divIcon({
-        className: "pin-wrap",
-        html: `<div class="pin ${cls}">${label}</div>`,
-        iconSize: isNext ? [34, 34] : [28, 28],
-        iconAnchor: isNext ? [17, 17] : [14, 14],
+    for (const item of visible) {
+      const index = run?.ordem.indexOf(item.id) ?? -1;
+      const done = item.status === "entregue";
+      const element = markerElement(index >= 0 ? String(index + 1) : "•", done ? "done" : "stop");
+      if (upcoming?.id === item.id) element.classList.add("is-next");
+      const marker = new Marker({ element, anchor: "center" }).setLngLat([item.lng, item.lat]).addTo(map);
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
+        useDelivery.getState().select(item.id);
       });
-      const marker = L.marker([comanda.lat, comanda.lng], { icon, zIndexOffset: isNext ? 400 : 200 });
-      marker.on("click", (event) => {
-        L.DomEvent.stopPropagation(event);
-        if (useDelivery.getState().mapPick) return;
-        useDelivery.getState().select(comanda.id);
-        useDelivery.getState().setFollow(false);
-      });
-      marker.addTo(pins);
+      markersRef.current.push(marker);
     }
 
-    const points = run?.points ?? [];
-    crumb.setLatLngs(points.map((point) => [point.lat, point.lng]));
+    const runPoints = run?.points ?? [];
+    const current = state.gaze ?? runPoints[runPoints.length - 1] ?? null;
+    const route = state.routeLine.length > 1 ? state.routeLine : [
+      ...(current ? [current] : []),
+      ...visible.filter((item) => run?.ordem.includes(item.id) && !run.feitas.includes(item.id)),
+    ];
+    const source = map.getSource("circuito-route") as GeoJSONSource | undefined;
+    source?.setData(lineData(route));
 
-    const feitas = new Set(run?.feitas ?? []);
-    const pending: Array<Comanda & { lat: number; lng: number }> = [];
-    if (run) {
-      for (const id of run.ordem) {
-        if (feitas.has(id)) continue;
-        const comanda = state.comandas.find((item) => item.id === id);
-        if (comanda && comPin(comanda)) pending.push(comanda);
+    if (current) {
+      const previous = previousPosition.current;
+      if (previous && Math.hypot(previous.lat - current.lat, previous.lng - current.lng) > 0.00002) {
+        headingRef.current = bearing(previous, current);
       }
-    }
-    const origin = state.gaze ?? partida(state);
-    const last = points[points.length - 1];
-    const routed = state.routeLine;
-    if (routed.length >= 2) {
-      plan.setLatLngs(routed.map((point) => [point.lat, point.lng]));
-    } else {
-      const planPts: [number, number][] = [];
-      if (last && pending.length) planPts.push([last.lat, last.lng]);
-      else if (!last && pending.length) planPts.push([origin.lat, origin.lng]);
-      for (const stop of pending) planPts.push([stop.lat, stop.lng]);
-      plan.setLatLngs(planPts);
-    }
-
-    const simulating = run?.modo === "simulacao";
-    let riderAt: LatLng | null = simulating && last ? last : (state.gaze ?? last ?? null);
-    let heading = headingRef.current;
-    if (simulating && last && points.length > 1) {
-      heading = bearing(points[points.length - 2], last);
-      headingRef.current = heading;
-    } else if (state.gaze) {
-      const prev = prevGaze.current;
-      if (prev && haversine(prev, state.gaze) > 0.004) {
-        heading = bearing(prev, state.gaze);
-        headingRef.current = heading;
-      }
-      prevGaze.current = state.gaze;
-    } else if (last && points.length > 1) {
-      heading = bearing(points[points.length - 2], last);
-      headingRef.current = heading;
-    }
-
-    if (riderAt) {
-      const liveDot = state.liveStatus === "ativo" && !simulating;
-      const icon = L.divIcon({
-        className: "pin-wrap",
-        html: `<div class="nav-puck${liveDot ? " rider-pulse" : ""}" style="transform: rotate(${heading}deg)"><span></span></div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-      });
+      previousPosition.current = current;
       if (!riderRef.current) {
-        riderRef.current = L.marker([riderAt.lat, riderAt.lng], { icon, zIndexOffset: 800 }).addTo(map);
+        riderRef.current = new Marker({ element: markerElement("🏍️", "rider"), anchor: "center" })
+          .setLngLat([current.lng, current.lat]).addTo(map);
       } else {
-        riderRef.current.setLatLng([riderAt.lat, riderAt.lng]);
-        riderRef.current.setIcon(icon);
+        riderRef.current.setLngLat([current.lng, current.lat]);
       }
-    } else if (riderRef.current) {
-      riderRef.current.remove();
+      const riderEl = riderRef.current.getElement();
+      riderEl.style.setProperty("--rider-heading", `${headingRef.current}deg`);
+    } else {
+      riderRef.current?.remove();
       riderRef.current = null;
     }
 
-    const showAcc = state.liveStatus === "ativo" && state.gaze && !simulating && state.gpsMeta.accuracy != null;
-    if (showAcc && state.gaze) {
-      const radius = Math.max(8, state.gpsMeta.accuracy ?? 8);
-      if (!accRef.current) {
-        accRef.current = L.circle([state.gaze.lat, state.gaze.lng], {
-          radius,
-          color: "#1a73e8",
-          weight: 1,
-          opacity: 0.7,
-          fillColor: "#1a73e8",
-          fillOpacity: 0.12,
-        }).addTo(map);
-      } else {
-        accRef.current.setLatLng([state.gaze.lat, state.gaze.lng]);
-        accRef.current.setRadius(radius);
-      }
-    } else if (accRef.current) {
-      accRef.current.remove();
-      accRef.current = null;
-    }
-
-    const host = hostRef.current;
-    const onScreen = !!host && host.clientWidth > 20 && host.clientHeight > 20;
-    const spots: [number, number][] = [];
-    if (state.gaze) spots.push([state.gaze.lat, state.gaze.lng]);
-    else if (state.base) spots.push([state.base.lat, state.base.lng]);
-    for (const comanda of visible) spots.push([comanda.lat, comanda.lng]);
-    const step = Math.max(1, Math.ceil(state.routeLine.length / 80));
-    for (let i = 0; i < state.routeLine.length; i += step) {
-      const point = state.routeLine[i];
-      spots.push([point.lat, point.lng]);
-    }
-
-    if (!onScreen) return;
-
-    const fitRoute = () => {
+    if (state.fitToken !== fitted.current) {
       fitted.current = state.fitToken;
-      // Avoid Leaflet/MapLibre fitBounds edge cases on Android WebView.
-      // Compute a safe center/zoom from validated coordinates instead.
-      const validSpots = spots.filter(
-        ([lat, lng]) =>
-          Number.isFinite(lat) &&
-          Number.isFinite(lng) &&
-          Math.abs(lat) <= 90 &&
-          Math.abs(lng) <= 180,
-      );
-      if (!validSpots.length) return;
-      if (validSpots.length === 1) {
-        map.setView(validSpots[0], 16, { animate: !reduced });
-        return;
-      }
-      const lats = validSpots.map(([lat]) => lat);
-      const lngs = validSpots.map(([, lng]) => lng);
-      const minLat = Math.min(...lats);
-      const maxLat = Math.max(...lats);
-      const minLng = Math.min(...lngs);
-      const maxLng = Math.max(...lngs);
-      const span = Math.max(maxLat - minLat, maxLng - minLng);
-      const zoom = span > 0.2 ? 11 : span > 0.08 ? 12 : span > 0.035 ? 13 : span > 0.015 ? 14 : 15;
-      map.setView([(minLat + maxLat) / 2, (minLng + maxLng) / 2], zoom, {
-        animate: !reduced,
+      if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 16, duration: 500 });
+    } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
+      map.easeTo({
+        center: [current.lng, current.lat],
+        zoom: Math.max(map.getZoom(), 16.5),
+        bearing: threeD ? headingRef.current : 0,
+        pitch: threeD ? 52 : 0,
+        duration: 650,
       });
-    };
-
-    if (state.fitToken !== fitted.current && fitted.current !== -1) {
-      fitRoute();
-    } else if (state.follow && state.gaze && state.liveStatus === "ativo" && !simulating && !homed.current) {
-      homed.current = true;
-      fitted.current = state.fitToken;
-      map.flyTo([state.gaze.lat, state.gaze.lng], 16, { animate: !reduced });
-    } else if (state.fitToken !== fitted.current) {
-      fitRoute();
-    } else if (state.follow && riderAt) {
-      const zoom = Math.max(map.getZoom(), 17);
-      map.setView([riderAt.lat, riderAt.lng], zoom, { animate: !reduced });
-      if (host) map.panBy([0, Math.round(host.clientHeight * 0.18)], { animate: false });
     }
-  }, [ready, tick, tab]);
+  }, [ready, tick, tab, threeD]);
 
   useEffect(() => {
-    if (!ready) return;
-    const map = mapRef.current;
-    if (!map) return;
-    const id = window.setTimeout(() => map.invalidateSize(), 80);
-    return () => window.clearTimeout(id);
-  }, [ready, tab]);
-
-  const liveStatus = useDelivery((state) => state.liveStatus);
+    if (!ready || !mapRef.current) return;
+    mapRef.current.easeTo({
+      pitch: threeD ? 52 : 0,
+      bearing: threeD ? headingRef.current : 0,
+      duration: 700,
+    });
+  }, [threeD, ready]);
 
   function locate() {
     const state = useDelivery.getState();
     state.setFollow(true);
     if (state.liveStatus !== "ativo" && state.liveStatus !== "buscando") state.enableLive();
-    else if (!state.live) state.enableLive();
     const gaze = useDelivery.getState().gaze;
-    if (gaze && mapRef.current) mapRef.current.flyTo([gaze.lat, gaze.lng], 16);
+    if (gaze && mapRef.current) {
+      mapRef.current.easeTo({ center: [gaze.lng, gaze.lat], zoom: 17, duration: 700 });
+    }
   }
 
   return (
     <div className="relative h-full w-full">
       <div ref={hostRef} className="absolute inset-0" />
-      <div className="absolute top-28 right-3 z-10 flex flex-col gap-2">
+      <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
         <IconButton label="Onde estou" pressed={liveStatus === "ativo"} onClick={locate}>
           <LocateFixed className="h-5 w-5" />
         </IconButton>
-        <IconButton
-          label="Seguir rastro"
-          pressed={follow}
-          onClick={() => useDelivery.getState().setFollow(!useDelivery.getState().follow)}
-        >
+        <IconButton label={threeD ? "Visão 2D" : "Visão 3D"} pressed={threeD} onClick={() => setThreeD((value) => !value)}>
+          <Layers2 className="h-5 w-5" />
+        </IconButton>
+        <IconButton label="Seguir posição" pressed={follow} onClick={() => useDelivery.getState().setFollow(!useDelivery.getState().follow)}>
           <Crosshair className="h-5 w-5" />
         </IconButton>
         <IconButton label="Enquadrar rota" onClick={() => useDelivery.getState().requestFit()}>
