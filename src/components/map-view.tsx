@@ -91,9 +91,21 @@ export function MapView() {
     const initial = useDelivery.getState().gaze ?? useDelivery.getState().base ?? { lat: -26.99, lng: -48.64 };
     const map = new MapLibreMap({
       container: host,
-      // OpenFreeMap: estilo vetorial gratuito, sem chave de API.
-      // O próprio MapLibre inclui a atribuição OpenMapTiles/OpenStreetMap.
-      style: "https://tiles.openfreemap.org/styles/liberty",
+      // Camada raster direta do OpenStreetMap: evita dependência de
+      // style.json, sprites e fontes externas do provedor de mapas.
+      style: {
+        version: 8,
+        sources: {
+          "osm-raster": {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxzoom: 19,
+          },
+        },
+        layers: [{ id: "osm-raster", type: "raster", source: "osm-raster" }],
+      },
       center: [initial.lng, initial.lat],
       zoom: 15,
       pitch: 0,
