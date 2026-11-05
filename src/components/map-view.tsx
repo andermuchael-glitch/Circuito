@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { Map as MapLibreMap, Marker, type GeoJSONSource } from "maplibre-gl";
+import { Map as MapLibreMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { Home, LocateFixed, Maximize2, Crosshair, Layers2 } from "lucide-react";
 import { IconButton } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, partida, useDelivery } from "@/lib/delivery-store";
 import { bearing, type LatLng } from "@/lib/geo";
 import { startOfToday } from "@/lib/format";
 import "maplibre-gl/dist/maplibre-gl.css";
+
+setWorkerUrl(workerUrl);
 
 type FeatureCollection = {
   type: "FeatureCollection";
