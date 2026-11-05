@@ -134,12 +134,13 @@ async function fetchNominatim(query: string, near?: LatLng | null) {
   });
   if (response.status === 429) throw new Error("busca ocupada");
   if (!response.ok) throw new Error("não foi possível buscar o endereço");
-  const data = (await response.json()) as { lat: string; lon: string; display_name: string; address?: { city?: string; town?: string; municipality?: string; county?: string } }[];
+  const data = (await response.json()) as { lat: string; lon: string; display_name: string; address?: { city?: string; town?: string; municipality?: string; county?: string; house_number?: string } }[];
   return data.map((item) => ({
     label: item.display_name.split(",").slice(0, 5).join(",").trim(),
     lat: Number(item.lat),
     lng: Number(item.lon),
     city: item.address?.city ?? item.address?.town ?? item.address?.municipality ?? item.address?.county ?? "",
+    number: item.address?.house_number ?? "",
   }));
 }
 
@@ -177,18 +178,20 @@ async function fetchPhoton(query: string, near?: LatLng | null) {
       props.state,
     ].filter(Boolean).join(", ");
     if (!label) return [];
-    return [{ label, lat, lng, city: props.city ?? props.district ?? "" }];
+    return [{ label, lat, lng, city: props.city ?? props.district ?? "", number: props.housenumber ?? "" }];
   });
 }
 
 export async function searchNominatim(query: string, near?: LatLng | null) {
   const seen = new Set<string>();
   const hits: { label: string; lat: number; lng: number }[] = [];
+  const requestedNumber = houseNumber(query);
   for (const attempt of expandQueries(query)) {
     try {
       const batch = await fetchNominatim(attempt, near);
       for (const item of batch) {
         if (!Number.isFinite(item.lat) || !Number.isFinite(item.lng)) continue;
+        if (requestedNumber && item.number !== requestedNumber) continue;
         if (/balne[aá]rio/i.test(query) && item.city && !/balne[aá]rio cambori[uú]/i.test(item.city)) continue;
         if (near && haversine(near, item) > 60) continue;
         const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
@@ -208,6 +211,7 @@ export async function searchNominatim(query: string, near?: LatLng | null) {
       try {
         const batch = await fetchPhoton(attempt, near);
         for (const item of batch) {
+          if (requestedNumber && item.number !== requestedNumber) continue;
           if (/balne[aá]rio/i.test(query) && item.city && !/balne[aá]rio cambori[uú]/i.test(item.city)) continue;
           if (near && haversine(near, item) > 12) continue;
           const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
