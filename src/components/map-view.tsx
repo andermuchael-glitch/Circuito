@@ -91,20 +91,26 @@ export function MapView() {
     const initial = useDelivery.getState().gaze ?? useDelivery.getState().base ?? { lat: -26.99, lng: -48.64 };
     const map = new MapLibreMap({
       container: host,
-      // Camada raster direta do OpenStreetMap: evita dependência de
-      // style.json, sprites e fontes externas do provedor de mapas.
+      // Usa os blocos raster da TomTom quando a chave estiver configurada.
+      // Mantém OpenStreetMap como alternativa para ambientes sem a chave.
       style: {
         version: 8,
         sources: {
-          "osm-raster": {
+          "base-raster": {
             type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tiles: [
+              import.meta.env.VITE_TOMTOM_API_KEY
+                ? `https://api.tomtom.com/maps/orbis/display/raster/tile/{z}/{x}/{y}?apiVersion=2&style=street-light&key=${encodeURIComponent(import.meta.env.VITE_TOMTOM_API_KEY)}`
+                : "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            ],
             tileSize: 256,
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            attribution: import.meta.env.VITE_TOMTOM_API_KEY
+              ? "© TomTom"
+              : '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxzoom: 19,
           },
         },
-        layers: [{ id: "osm-raster", type: "raster", source: "osm-raster" }],
+        layers: [{ id: "base-raster", type: "raster", source: "base-raster" }],
       },
       center: [initial.lng, initial.lat],
       zoom: 15,
