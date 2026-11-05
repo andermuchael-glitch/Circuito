@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Check, Navigation, Play, Square } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Maximize2, Minimize2, Navigation, Play, Square } from "lucide-react";
 import { GhostButton, PrimaryButton, payName } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
 import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, waLink, wazeLink } from "@/lib/format";
@@ -26,6 +26,7 @@ export function RotaPanel() {
   const now = useNow(Boolean(run && run.status === "ativa"));
   const [order, setOrder] = useState<string[]>([]);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [mapExpanded, setMapExpanded] = useState(false);
 
   const abertas = comandas.filter(comPin).filter((item) => item.status === "aberta");
   const selected = order
@@ -85,9 +86,22 @@ export function RotaPanel() {
           A rota sai da {origin.endereco}, passa nas entregas e volta para a base. As ruas abrem no Waze ou no Google Maps.
         </p>
 
-        <section className="mt-4 overflow-hidden rounded-2xl border border-line bg-surface">
-          <div className="px-3 py-2"><p className="text-sm font-semibold">Prévia do mapa</p><p className="text-xs text-muted">Confira sua posição e as paradas antes de iniciar</p></div>
-          <div className="relative h-64 w-full"><MapView /></div>
+        <section className={cn(
+          "overflow-hidden border border-line bg-surface",
+          mapExpanded ? "fixed inset-0 z-[100] flex flex-col rounded-none" : "mt-4 rounded-2xl",
+        )}>
+          <div className={cn("flex items-center justify-between gap-3 px-3 py-3", mapExpanded && "pt-[calc(env(safe-area-inset-top)+12px)]")}>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">Prévia do mapa</p>
+              <p className="text-xs text-muted">Confira sua posição e as paradas antes de iniciar</p>
+            </div>
+            <button type="button" onClick={() => setMapExpanded((value) => !value)} aria-label={mapExpanded ? "Recolher mapa" : "Expandir mapa"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line bg-raised">
+              {mapExpanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+            </button>
+          </div>
+          <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[55vh] min-h-[340px] max-h-[520px]")}>
+            <MapView />
+          </div>
         </section>
 
         <div className="mt-4 flex gap-2">
@@ -263,12 +277,23 @@ export function RotaPanel() {
         <Stat label="km/h" value={speed} />
       </dl>
 
-      <section className="mt-4 overflow-hidden rounded-2xl border border-line bg-surface">
-        <div className="flex items-center justify-between px-3 py-2">
-          <div><p className="text-sm font-semibold">Mapa da rota</p><p className="text-xs text-muted">OpenStreetMap · posição pelo GPS</p></div>
-          <span className={cn("rounded-full px-2 py-1 text-xs", liveStatus === "ativo" ? "bg-go/15 text-go" : "bg-raised text-muted")}>{liveStatus === "ativo" ? "GPS ativo" : "Aguardando GPS"}</span>
+      <section className={cn(
+        "overflow-hidden border border-line bg-surface",
+        mapExpanded ? "fixed inset-0 z-[100] flex flex-col rounded-none" : "mt-4 rounded-2xl",
+      )}>
+        <div className={cn("flex items-center justify-between gap-3 px-3 py-3", mapExpanded && "pt-[calc(env(safe-area-inset-top)+12px)]")}>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Mapa da rota</p>
+            <p className="text-xs text-muted">OpenStreetMap · posição pelo GPS</p>
+            <span className={cn("mt-1 inline-flex rounded-full px-2 py-1 text-xs", liveStatus === "ativo" ? "bg-go/15 text-go" : "bg-raised text-muted")}>{liveStatus === "ativo" ? "GPS ativo" : "Aguardando GPS"}</span>
+          </div>
+          <button type="button" onClick={() => setMapExpanded((value) => !value)} aria-label={mapExpanded ? "Recolher mapa" : "Expandir mapa"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line bg-raised">
+            {mapExpanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+          </button>
         </div>
-        <div className="relative h-64 w-full"><MapView /></div>
+        <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[55vh] min-h-[340px] max-h-[520px]")}>
+          <MapView />
+        </div>
       </section>
 
       {gpsError ? <p className="mt-3 rounded-2xl bg-raised px-3 py-2 text-sm text-danger">{gpsError}</p> : null}
