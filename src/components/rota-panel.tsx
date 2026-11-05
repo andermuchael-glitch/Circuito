@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Check, Maximize2, Minimize2, Navigation, Play, Square } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpRight, Check, CornerUpLeft, CornerUpRight, Maximize2, Minimize2, Navigation, Play, Square, Volume2, VolumeX } from "lucide-react";
 import { GhostButton, PrimaryButton, payName } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
 import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, waLink, wazeLink } from "@/lib/format";
@@ -22,11 +22,14 @@ export function RotaPanel() {
   const origin = partida({ base, gaze });
   const routeKm = useDelivery((state) => state.routeKm);
   const routeKind = useDelivery((state) => state.routeKind);
+  const routeCue = useDelivery((state) => state.routeCue);
   const run = corridas.find((item) => item.id === ativaId) ?? null;
   const now = useNow(Boolean(run && run.status === "ativa"));
   const [order, setOrder] = useState<string[]>([]);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const lastSpokenCue = useState<{ current: string }>({ current: "" })[0];
 
   const abertas = comandas.filter(comPin).filter((item) => item.status === "aberta");
   const selected = order
@@ -38,6 +41,29 @@ export function RotaPanel() {
     return straightKm(origin, selected) + haversine(selected[selected.length - 1], origin);
   }, [origin, selected]);
   const roadKm = routeKind && selected.length ? routeKm : null;
+  useEffect(() => {
+    if (!run || run.modo !== "gps" || liveStatus !== "ativo" || !routeCue || routeKind !== "rua") return;
+    if (!voiceEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const cueKey = routeCue.text;
+    if (!cueKey || lastSpokenCue.current === cueKey) return;
+    lastSpokenCue.current = cueKey;
+    const message = routeCue.meters > 0
+      ? `${metersLabel(routeCue.meters / 1000)}. ${routeCue.text}`
+      : routeCue.text;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.lang = "pt-BR";
+    utterance.rate = 0.96;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+  }, [run?.id, run?.modo, liveStatus, routeCue?.text, routeCue?.meters, routeKind, voiceEnabled, lastSpokenCue]);
+
+  useEffect(() => {
+    if (!voiceEnabled && typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+  }, [voiceEnabled]);
+
   const queueKey = abertas.map((item) => item.id).join(",");
 
   useEffect(() => {
@@ -295,6 +321,43 @@ export function RotaPanel() {
           <MapView />
         </div>
       </section>
+
+      {run.modo === "gps" ? (
+        <section className="mt-3 rounded-2xl border border-signal bg-raised p-3">
+          <div className="flex items-center gap-3">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-signal text-signal-ink">
+              {routeCue?.modifier?.includes("left") ? <CornerUpLeft className="h-7 w-7" /> :
+                routeCue?.modifier?.includes("right") ? <CornerUpRight className="h-7 w-7" /> :
+                <ArrowUpRight className="h-7 w-7" />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold tracking-wide text-muted">PRÓXIMA INSTRUÇÃO</p>
+              <p className="text-lg font-bold leading-tight">
+                {routeKind === "rua" && routeCue ? routeCue.text : "Calculando caminho pelas ruas…"}
+              </p>
+              {routeKind === "rua" && routeCue ? (
+                <p className="mt-1 font-mono text-sm text-signal">
+                  {routeCue.meters >= 1000
+                    ? `${(routeCue.meters / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`
+                    : `${Math.max(0, Math.round(routeCue.meters))} m`}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => setVoiceEnabled((value) => !value)}
+              aria-label={voiceEnabled ? "Desativar instruções por voz" : "Ativar instruções por voz"}
+              aria-pressed={voiceEnabled}
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line"
+            >
+              {voiceEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            Navegação assistida pelo Circuito · mantenha o GPS ativo e confira a sinalização da via
+          </p>
+        </section>
+      ) : null}
 
       {gpsError ? <p className="mt-3 rounded-2xl bg-raised px-3 py-2 text-sm text-danger">{gpsError}</p> : null}
       {run.modo === "gps" && gpsMeta.weak ? (
