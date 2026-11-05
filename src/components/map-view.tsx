@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Map as MapLibreMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
-import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+import { Map as MapLibreMap, Marker, type GeoJSONSource } from "maplibre-gl";
 import { Home, LocateFixed, Maximize2, Crosshair, Layers2 } from "lucide-react";
 import { IconButton } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, partida, useDelivery } from "@/lib/delivery-store";
@@ -8,7 +7,6 @@ import { bearing, type LatLng } from "@/lib/geo";
 import { startOfToday } from "@/lib/format";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-setWorkerUrl(workerUrl);
 
 type FeatureCollection = {
   type: "FeatureCollection";
@@ -89,9 +87,9 @@ export function MapView() {
         sources: {
           "circuito-osm": {
             type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tiles: ["https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"],
             tileSize: 256,
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors · © <a href="https://carto.com/attributions">CARTO</a>',
             maxzoom: 19,
           },
         },
