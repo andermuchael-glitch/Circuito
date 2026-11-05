@@ -5,7 +5,7 @@ import { drivingRoute } from "@/lib/routing";
 
 function originKey(point: LatLng | null) {
   if (!point) return "";
-  return `${point.lat.toFixed(3)},${point.lng.toFixed(3)}`;
+  return `${point.lat.toFixed(4)},${point.lng.toFixed(4)}`;
 }
 
 export function RouteEngine() {
@@ -57,7 +57,7 @@ export function RouteEngine() {
           cue: null,
         });
       });
-    }, 280);
+    }, 650);
 
     return () => {
       cancel = true;
