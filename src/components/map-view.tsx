@@ -191,6 +191,11 @@ export function MapView() {
       markersRef.current.push(marker);
     }
 
+    if (run?.destino) {
+      markersRef.current.push(new maplibregl.Marker({ element: markerElement("DESTINO", "stop"), anchor: "center" })
+        .setLngLat([run.destino.lng, run.destino.lat]).addTo(map));
+    }
+
     const draft = state.draft;
     if (draft?.lat != null && draft.lng != null) {
       markersRef.current.push(new maplibregl.Marker({ element: markerElement("NOVO", "stop"), anchor: "center" })
@@ -275,6 +280,7 @@ export function MapView() {
     const map = mapRef.current;
     if (!map) return;
     setSelectedLabel(hit.label);
+    useDelivery.getState().setSearchDestination({ label: hit.label, lat: hit.lat, lng: hit.lng });
     setQuery(hit.label);
     setHits([]);
     setSearchOpen(false);
