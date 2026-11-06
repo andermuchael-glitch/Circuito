@@ -191,7 +191,7 @@ export async function searchNominatim(query: string, near?: LatLng | null) {
       const batch = await fetchNominatim(attempt, near);
       for (const item of batch) {
         if (!Number.isFinite(item.lat) || !Number.isFinite(item.lng)) continue;
-        if (requestedNumber && item.number !== requestedNumber) continue;
+        if (requestedNumber && item.number && item.number !== requestedNumber) continue;
         if (/balne[aá]rio/i.test(query) && item.city && !/balne[aá]rio cambori[uú]/i.test(item.city)) continue;
         if (near && haversine(near, item) > 60) continue;
         const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
