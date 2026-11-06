@@ -28,6 +28,7 @@ function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") 
 export function MapView() {
   const hostRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const riderRef = useRef<L.Marker | null>(null);
   const routeRef = useRef<L.Polyline | null>(null);
@@ -38,7 +39,7 @@ export function MapView() {
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState("");
   const [mapRetry, setMapRetry] = useState(0);
-  const [threeD, setThreeD] = useState(false);
+  const [classicMap, setClassicMap] = useState(false);
   const follow = useDelivery((state) => state.follow);
   const tab = useDelivery((state) => state.tab);
   const liveStatus = useDelivery((state) => state.liveStatus);
@@ -78,13 +79,14 @@ export function MapView() {
       zoomControl: false,
       attributionControl: true,
       preferCanvas: true,
-    }).setView([initial.lat, initial.lng], 15);
+    }).setView([initial.lat, initial.lng], 16.5);
 
-    const tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    const tiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      maxZoom: 20,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       crossOrigin: true,
     }).addTo(map);
+    tileLayerRef.current = tiles;
 
     tiles.once("load", () => {
       if (disposed) return;
@@ -118,6 +120,7 @@ export function MapView() {
       routeRef.current?.remove();
       map.remove();
       mapRef.current = null;
+      tileLayerRef.current = null;
       riderRef.current = null;
       routeRef.current = null;
       markersRef.current = [];
@@ -225,22 +228,29 @@ export function MapView() {
 
     if (state.fitToken !== fitted.current) {
       fitted.current = state.fitToken;
-      if (current) map.flyTo([current.lat, current.lng], 16, { duration: 0.5 });
+      if (current) map.flyTo([current.lat, current.lng], 17.5, { duration: 0.5 });
     } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
-      map.flyTo([current.lat, current.lng], Math.max(map.getZoom(), 16.5), { duration: 0.65 });
+      // Zoom mais próximo para facilitar a leitura das ruas durante a entrega.
+      map.flyTo([current.lat, current.lng], Math.max(map.getZoom(), 17.5), { duration: 0.65 });
     }
-  }, [ready, tick, tab, threeD]);
+  }, [ready, tick, tab, classicMap]);
 
   function locate() {
     const state = useDelivery.getState();
     state.setFollow(true);
     if (state.liveStatus !== "ativo" && state.liveStatus !== "buscando") state.enableLive();
     const gaze = useDelivery.getState().gaze;
-    if (gaze && mapRef.current) mapRef.current.flyTo([gaze.lat, gaze.lng], 17, { duration: 0.7 });
+    if (gaze && mapRef.current) mapRef.current.flyTo([gaze.lat, gaze.lng], 18, { duration: 0.7 });
   }
 
   function toggleView() {
-    setThreeD((value) => !value);
+    const next = !classicMap;
+    setClassicMap(next);
+    tileLayerRef.current?.setUrl(
+      next
+        ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    );
   }
 
   return (
@@ -257,7 +267,7 @@ export function MapView() {
         <IconButton label="Onde estou" pressed={liveStatus === "ativo"} onClick={locate}>
           <LocateFixed className="h-5 w-5" />
         </IconButton>
-        <IconButton label={threeD ? "Visão 2D" : "Visão 3D"} pressed={threeD} onClick={toggleView}>
+        <IconButton label={classicMap ? "Mapa detalhado" : "Mapa clássico"} pressed={classicMap} onClick={toggleView}>
           <Layers2 className="h-5 w-5" />
         </IconButton>
         <IconButton label="Seguir posição" pressed={follow} onClick={() => useDelivery.getState().setFollow(!useDelivery.getState().follow)}>
@@ -265,7 +275,7 @@ export function MapView() {
         </IconButton>
         <IconButton label="Enquadrar rota" onClick={() => {
           const route = routeRef.current;
-          if (route && mapRef.current) mapRef.current.fitBounds(route.getBounds().pad(0.18), { maxZoom: 16 });
+          if (route && mapRef.current) mapRef.current.fitBounds(route.getBounds().pad(0.18), { maxZoom: 17 });
           else useDelivery.getState().requestFit();
         }}>
           <Maximize2 className="h-5 w-5" />
