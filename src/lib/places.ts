@@ -126,7 +126,7 @@ async function fetchNominatim(query: string, near?: LatLng | null) {
     // Keep address candidates inside the local delivery area, not neighboring cities.
     const span = 0.08;
     params.set("viewbox", `${near.lng - span},${near.lat + span},${near.lng + span},${near.lat - span}`);
-    params.set("bounded", "1");
+    params.set("bounded", "0");
   }
   const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
   const response = await fetch(url, {
@@ -182,10 +182,51 @@ async function fetchPhoton(query: string, near?: LatLng | null) {
   });
 }
 
+type TomTomSearchResponse = { results?: Array<{ position?: { lat?: number; lon?: number }; address?: { freeformAddress?: string; streetName?: string; streetNumber?: string; municipality?: string; municipalitySubdivision?: string; countrySubdivision?: string } }> };
+
+async function searchTomTom(query: string, near?: LatLng | null) {
+  const key = import.meta.env.VITE_TOMTOM_API_KEY as string | undefined;
+  if (!key) return [];
+  const params = new URLSearchParams({ key, countrySet: "BR", limit: "8", language: "pt-BR", typeahead: "true" });
+  if (near) {
+    params.set("lat", String(near.lat));
+    params.set("lon", String(near.lng));
+    params.set("radius", "50000");
+  }
+  const url = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(query)}.json?${params.toString()}`;
+  const response = await fetch(url);
+  if (!response.ok) return [];
+  const data = await response.json() as TomTomSearchResponse;
+  return (data.results ?? []).flatMap((item) => {
+    const lat = item.position?.lat;
+    const lng = item.position?.lon;
+    if (typeof lat !== "number" || typeof lng !== "number") return [];
+    const a = item.address;
+    const label = a?.freeformAddress ?? [a?.streetName, a?.streetNumber, a?.municipalitySubdivision, a?.municipality, a?.countrySubdivision].filter(Boolean).join(", ");
+    return label ? [{ lat, lng, label, city: a?.municipality ?? "", number: a?.streetNumber ?? "" }] : [];
+  });
+}
+
 export async function searchNominatim(query: string, near?: LatLng | null) {
   const seen = new Set<string>();
   const hits: { label: string; lat: number; lng: number }[] = [];
   const requestedNumber = houseNumber(query);
+
+  // TomTom is the primary geocoder; OSM and Photon remain as fallbacks.
+  try {
+    const tomtom = await searchTomTom(`${query}, ${CITY}`, near);
+    for (const item of tomtom) {
+      if (near && haversine(near, item) > 60) continue;
+      const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      hits.push({ lat: item.lat, lng: item.lng, label: addressWithNumber(query, item.label) });
+    }
+  } catch {
+    // Fall through to the open geocoders.
+  }
+  if (hits.length) return hits.slice(0, 5);
+
   for (const attempt of expandQueries(query)) {
     try {
       const batch = await fetchNominatim(attempt, near);
@@ -211,7 +252,7 @@ export async function searchNominatim(query: string, near?: LatLng | null) {
       try {
         const batch = await fetchPhoton(attempt, near);
         for (const item of batch) {
-          if (requestedNumber && item.number !== requestedNumber) continue;
+          if (requestedNumber && item.number && item.number !== requestedNumber) continue;
           if (/balne[aá]rio/i.test(query) && item.city && !/balne[aá]rio cambori[uú]/i.test(item.city)) continue;
           if (near && haversine(near, item) > 12) continue;
           const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
