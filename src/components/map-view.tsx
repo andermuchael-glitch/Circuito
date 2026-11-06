@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import { Home, LocateFixed, Maximize2, Crosshair, Layers2 } from "lucide-react";
+import { Home, LocateFixed, Maximize2, Crosshair, Search, X, Layers2, Navigation } from "lucide-react";
+import maplibregl, { type Map as MapLibreMap, type Marker } from "maplibre-gl";
+import { TomTomMap } from "@tomtom-org/maps-sdk/map";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { IconButton } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, useDelivery } from "@/lib/delivery-store";
 import { bearing, type LatLng } from "@/lib/geo";
 import { startOfToday } from "@/lib/format";
+import { searchNominatim } from "@/lib/places";
+import { cn } from "@/lib/cn";
+
+type SearchHit = { label: string; lat: number; lng: number };
 
 function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") {
   const el = document.createElement("div");
@@ -17,32 +22,44 @@ function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") 
   } else {
     el.textContent = label;
   }
-  return L.divIcon({
-    className: "circuito-leaflet-marker",
-    html: el,
-    iconSize: kind === "rider" ? [48, 48] : kind === "base" ? [54, 32] : [42, 42],
-    iconAnchor: kind === "base" ? [27, 16] : kind === "rider" ? [24, 24] : [21, 21],
-  });
+  return el;
+}
+
+function featureLine(points: LatLng[]) {
+  return {
+    type: "Feature" as const,
+    properties: {},
+    geometry: {
+      type: "LineString" as const,
+      coordinates: points.map((point) => [point.lng, point.lat]),
+    },
+  };
 }
 
 export function MapView() {
   const hostRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const tileLayerRef = useRef<L.TileLayer | null>(null);
-  const markersRef = useRef<L.Marker[]>([]);
-  const riderRef = useRef<L.Marker | null>(null);
-  const routeRef = useRef<L.Polyline | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const tomtomRef = useRef<TomTomMap | null>(null);
+  const markersRef = useRef<Marker[]>([]);
+  const riderRef = useRef<Marker | null>(null);
+  const searchMarkerRef = useRef<Marker | null>(null);
   const previousPosition = useRef<LatLng | null>(null);
   const headingRef = useRef(0);
   const fitted = useRef(-1);
-  const draftLocationRef = useRef("");
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState("");
   const [mapRetry, setMapRetry] = useState(0);
-  const [classicMap, setClassicMap] = useState(false);
+  const [darkStyle, setDarkStyle] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<SearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchMessage, setSearchMessage] = useState("");
+  const [selectedLabel, setSelectedLabel] = useState("");
   const follow = useDelivery((state) => state.follow);
   const tab = useDelivery((state) => state.tab);
   const liveStatus = useDelivery((state) => state.liveStatus);
+  const gaze = useDelivery((state) => state.gaze);
 
   const tick = useDelivery((state) => {
     const run = corridaAtiva(state);
@@ -50,83 +67,98 @@ export function MapView() {
       state.comandas.map((item) => `${item.id}:${item.status}:${item.lat ?? "s"}:${item.lng ?? "s"}`).join("|"),
       state.gaze ? `${state.gaze.lat.toFixed(5)},${state.gaze.lng.toFixed(5)}` : "",
       state.liveStatus,
-      state.gpsMeta.accuracy == null ? "" : String(Math.round(state.gpsMeta.accuracy)),
       state.base ? `${state.base.lat.toFixed(5)},${state.base.lng.toFixed(5)}` : "",
       run?.id ?? "",
       run?.ordem.join(",") ?? "",
       run?.feitas.join(",") ?? "",
-      String(run?.points.length ?? 0),
       String(state.fitToken),
       String(state.routeRev),
       state.follow ? "1" : "0",
-      state.mapPick ? "pick" : "",
-      state.draft?.lat != null && state.draft?.lng != null ? `draft:${state.draft.lat.toFixed(5)},${state.draft.lng.toFixed(5)}` : "",
+      state.draft?.lat != null && state.draft?.lng != null ? `draft:${state.draft.lat.toFixed(5)},${state.draft.lng!.toFixed(5)}` : "",
     ].join("~");
   });
 
   useEffect(() => {
     const host = hostRef.current;
+    const apiKey = import.meta.env.VITE_TOMTOM_API_KEY as string | undefined;
     if (!host) return;
+    if (!apiKey) {
+      setMapError("A chave do TomTom não foi encontrada na publicação. Configure VITE_TOMTOM_API_KEY no GitHub.");
+      return;
+    }
     let disposed = false;
-    let loaded = false;
-    const loadTimeout = window.setTimeout(() => {
-      if (!disposed && !loaded) setMapError("O mapa demorou para responder. Verifique a conexão e toque em Tentar novamente.");
-    }, 12000);
+    setReady(false);
+    setMapError("");
     const state = useDelivery.getState();
-    const initial = state.gaze ?? state.base ?? { lat: -26.99, lng: -48.64 };
-
-    const map = L.map(host, {
-      zoomControl: false,
-      attributionControl: true,
-      preferCanvas: true,
-    }).setView([initial.lat, initial.lng], 16.5);
-
-    const tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      crossOrigin: true,
-    }).addTo(map);
-    tileLayerRef.current = tiles;
-
-    tiles.once("load", () => {
-      if (disposed) return;
-      loaded = true;
-      window.clearTimeout(loadTimeout);
-      setMapError("");
-      setReady(true);
-    });
-    tiles.on("tileerror", (event) => {
-      if (disposed) return;
-      console.error("[Circuito mapa] Falha ao carregar bloco OSM", event);
-      setMapError("Não foi possível carregar os blocos do OpenStreetMap. Confira a conexão e tente novamente.");
-    });
-    map.on("click", (event) => {
-      const current = useDelivery.getState();
-      if (current.mapPick) current.dropPin({ lat: event.latlng.lat, lng: event.latlng.lng });
-    });
-
-    mapRef.current = map;
-    const resize = new ResizeObserver(() => map.invalidateSize({ pan: false }));
-    resize.observe(host);
-    const initialResize = window.setTimeout(() => map.invalidateSize({ pan: false }), 150);
-
-    return () => {
-      disposed = true;
-      window.clearTimeout(loadTimeout);
-      window.clearTimeout(initialResize);
-      resize.disconnect();
-      markersRef.current.forEach((marker) => marker.remove());
-      riderRef.current?.remove();
-      routeRef.current?.remove();
-      map.remove();
-      mapRef.current = null;
-      tileLayerRef.current = null;
-      riderRef.current = null;
-      routeRef.current = null;
-      markersRef.current = [];
-      setReady(false);
-    };
-  }, [mapRetry]);
+    const initial = state.gaze ?? state.base ?? { lat: -26.9955, lng: -48.6432 };
+    try {
+      const tomtom = new TomTomMap({
+        apiKey,
+        style: darkStyle ? "drivingDark" : "drivingLight",
+        language: "pt-BR",
+        mapLibre: {
+          container: host,
+          center: [initial.lng, initial.lat],
+          zoom: 17,
+          pitch: 48,
+          bearing: 0,
+          maxZoom: 20,
+          minZoom: 3,
+          attributionControl: true,
+          logoPosition: "bottom-left",
+          cooperativeGestures: false,
+        },
+      });
+      tomtomRef.current = tomtom;
+      const map = tomtom.mapLibreMap;
+      mapRef.current = map;
+      map.once("load", () => {
+        if (disposed) return;
+        map.addSource("circuito-route", {
+          type: "geojson",
+          data: featureLine([]),
+        });
+        map.addLayer({
+          id: "circuito-route-outline",
+          type: "line",
+          source: "circuito-route",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#ffffff", "line-width": 11, "line-opacity": 0.9 },
+        });
+        map.addLayer({
+          id: "circuito-route-line",
+          type: "line",
+          source: "circuito-route",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#1685ff", "line-width": 7, "line-opacity": 1 },
+        });
+        setReady(true);
+      });
+      map.on("error", (event) => {
+        console.warn("[Circuito TomTom mapa]", event.error);
+        if (!disposed && !map.isStyleLoaded()) setMapError("Não foi possível carregar o mapa TomTom. Verifique a chave e a conexão.");
+      });
+      const resize = new ResizeObserver(() => map.resize());
+      resize.observe(host);
+      return () => {
+        disposed = true;
+        resize.disconnect();
+        markersRef.current.forEach((marker) => marker.remove());
+        riderRef.current?.remove();
+        searchMarkerRef.current?.remove();
+        map.remove();
+        mapRef.current = null;
+        tomtomRef.current = null;
+        markersRef.current = [];
+        riderRef.current = null;
+        searchMarkerRef.current = null;
+        setReady(false);
+      };
+    } catch (error) {
+      console.error("[Circuito] Falha ao iniciar TomTom", error);
+      setMapError("Não foi possível iniciar o mapa TomTom neste aparelho.");
+    }
+  }, [mapRetry, darkStyle]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -135,16 +167,12 @@ export function MapView() {
     const run = corridaAtiva(state);
     const upcoming = nextStop(run, state.comandas);
     const today = startOfToday();
-
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
     if (state.base) {
-      markersRef.current.push(L.marker([state.base.lat, state.base.lng], {
-        icon: markerElement("BASE", "base"),
-        keyboard: true,
-        title: "Base",
-      }).addTo(map));
+      markersRef.current.push(new maplibregl.Marker({ element: markerElement("BASE", "base"), anchor: "center" })
+        .setLngLat([state.base.lng, state.base.lat]).addTo(map));
     }
 
     const visible = state.comandas.filter(comPin).filter((item) => {
@@ -155,55 +183,24 @@ export function MapView() {
     for (const item of visible) {
       const index = run?.ordem.indexOf(item.id) ?? -1;
       const done = item.status === "entregue";
-      const icon = markerElement(index >= 0 ? String(index + 1) : "•", done ? "done" : "stop");
-      if (upcoming?.id === item.id) {
-        const element = icon.options.html as HTMLElement;
-        element.classList.add("is-next");
-      }
-      const marker = L.marker([item.lat, item.lng], {
-        icon,
-        title: `Comanda ${item.id}`,
-      }).addTo(map);
-      marker.on("click", () => useDelivery.getState().select(item.id));
+      const element = markerElement(index >= 0 ? String(index + 1) : "•", done ? "done" : "stop");
+      if (upcoming?.id === item.id) element.classList.add("is-next");
+      const marker = new maplibregl.Marker({ element, anchor: "center" })
+        .setLngLat([item.lng, item.lat]).addTo(map);
+      marker.getElement().addEventListener("click", () => useDelivery.getState().select(item.id));
       markersRef.current.push(marker);
     }
 
     const draft = state.draft;
-    const draftKey = draft?.lat != null && draft?.lng != null
-      ? `${draft.lat.toFixed(5)},${draft.lng.toFixed(5)}`
-      : "";
-    if (draftKey) {
-      const draftMarker = L.marker([draft!.lat!, draft!.lng!], {
-        icon: markerElement("NOVO", "stop"),
-        title: "Endereço da nova comanda",
-        zIndexOffset: 900,
-      }).addTo(map);
-      markersRef.current.push(draftMarker);
-      if (draftKey !== draftLocationRef.current) {
-        draftLocationRef.current = draftKey;
-        map.flyTo([draft!.lat!, draft!.lng!], 17, { duration: 0.6 });
-      }
-    } else {
-      draftLocationRef.current = "";
+    if (draft?.lat != null && draft.lng != null) {
+      markersRef.current.push(new maplibregl.Marker({ element: markerElement("NOVO", "stop"), anchor: "center" })
+        .setLngLat([draft.lng, draft.lat]).addTo(map));
     }
 
-    const runPoints = run?.points ?? [];
-    const current = state.gaze ?? runPoints[runPoints.length - 1] ?? null;
-    const route = state.routeLine.length > 1 ? state.routeLine : [
-      ...(current ? [current] : []),
-      ...visible.filter((item) => run?.ordem.includes(item.id) && !run.feitas.includes(item.id)),
-    ];
-    routeRef.current?.remove();
-    routeRef.current = route.length > 1
-      ? L.polyline(route.map((point) => [point.lat, point.lng] as L.LatLngTuple), {
-          color: "#1677ed",
-          weight: 6,
-          opacity: 0.95,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(map)
-      : null;
-
+    const route = state.routeLine;
+    const source = map.getSource("circuito-route") as maplibregl.GeoJSONSource | undefined;
+    source?.setData(featureLine(route.length > 1 ? route : []));
+    const current = state.gaze ?? run?.points[run.points.length - 1] ?? null;
     if (current) {
       const previous = previousPosition.current;
       if (previous && Math.hypot(previous.lat - current.lat, previous.lng - current.lng) > 0.00002) {
@@ -211,16 +208,12 @@ export function MapView() {
       }
       previousPosition.current = current;
       if (!riderRef.current) {
-        riderRef.current = L.marker([current.lat, current.lng], {
-          icon: markerElement("🏍️", "rider"),
-          interactive: false,
-          zIndexOffset: 1000,
-        }).addTo(map);
+        riderRef.current = new maplibregl.Marker({ element: markerElement("🏍️", "rider"), anchor: "center", rotationAlignment: "map" })
+          .setLngLat([current.lng, current.lat]).addTo(map);
       } else {
-        riderRef.current.setLatLng([current.lat, current.lng]);
+        riderRef.current.setLngLat([current.lng, current.lat]);
       }
-      const riderEl = riderRef.current.getElement()?.querySelector("span");
-      riderEl?.setAttribute("style", `transform: rotate(${headingRef.current}deg)`);
+      riderRef.current.setRotation(0);
     } else {
       riderRef.current?.remove();
       riderRef.current = null;
@@ -228,59 +221,143 @@ export function MapView() {
 
     if (state.fitToken !== fitted.current) {
       fitted.current = state.fitToken;
-      if (current) map.flyTo([current.lat, current.lng], 17.5, { duration: 0.5 });
+      if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 17.5, pitch: 52, duration: 650 });
     } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
-      // Zoom mais próximo para facilitar a leitura das ruas durante a entrega.
-      map.flyTo([current.lat, current.lng], Math.max(map.getZoom(), 17.5), { duration: 0.65 });
+      // Modo navegação: a rua fica alinhada com a direção real do deslocamento.
+      map.easeTo({
+        center: [current.lng, current.lat],
+        zoom: Math.max(map.getZoom(), 17.5),
+        pitch: 52,
+        bearing: headingRef.current,
+        duration: 550,
+        essential: true,
+      });
+      riderRef.current?.setRotation(0);
     }
-  }, [ready, tick, tab, classicMap]);
+  }, [ready, tick, tab]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || !query.trim()) {
+      setHits([]);
+      setSearching(false);
+      setSearchMessage("");
+      return;
+    }
+    if (query.trim().length < 3) {
+      setHits([]);
+      setSearchMessage("Digite pelo menos 3 caracteres.");
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      setSearchMessage("");
+      void searchNominatim(query.trim(), gaze).then((results) => {
+        if (controller.signal.aborted) return;
+        setHits(results);
+        setSearchMessage(results.length ? "" : "Nenhum endereço encontrado. Tente incluir rua, número e cidade.");
+        setSearching(false);
+      }).catch(() => {
+        if (controller.signal.aborted) return;
+        setHits([]);
+        setSearching(false);
+        setSearchMessage("Falha na busca. Confira a conexão e tente novamente.");
+      });
+    }, 400);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, gaze?.lat, gaze?.lng, ready]);
+
+  function chooseAddress(hit: SearchHit) {
+    const map = mapRef.current;
+    if (!map) return;
+    setSelectedLabel(hit.label);
+    setQuery(hit.label);
+    setHits([]);
+    setSearchOpen(false);
+    searchMarkerRef.current?.remove();
+    const pin = document.createElement("div");
+    pin.className = "circuito-search-pin";
+    pin.innerHTML = '<span></span>';
+    searchMarkerRef.current = new maplibregl.Marker({ element: pin, anchor: "bottom" })
+      .setLngLat([hit.lng, hit.lat]).addTo(map);
+    map.easeTo({ center: [hit.lng, hit.lat], zoom: 18, pitch: 48, duration: 900 });
+  }
 
   function locate() {
     const state = useDelivery.getState();
     state.setFollow(true);
     if (state.liveStatus !== "ativo" && state.liveStatus !== "buscando") state.enableLive();
-    const gaze = useDelivery.getState().gaze;
-    if (gaze && mapRef.current) mapRef.current.flyTo([gaze.lat, gaze.lng], 18, { duration: 0.7 });
+    const position = useDelivery.getState().gaze;
+    if (position && mapRef.current) {
+      mapRef.current.easeTo({ center: [position.lng, position.lat], zoom: 18, pitch: 52, bearing: headingRef.current, duration: 800 });
+    }
   }
 
-  function toggleView() {
-    const next = !classicMap;
-    setClassicMap(next);
-    tileLayerRef.current?.setUrl(
-      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    );
+  function toggleStyle() {
+    setDarkStyle((value) => !value);
   }
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full overflow-hidden">
       <div ref={hostRef} className="absolute inset-0" />
+      <div className="absolute left-3 right-16 top-3 z-20">
+        {searchOpen ? (
+          <div className="overflow-hidden rounded-2xl border border-white/20 bg-[#101d19]/95 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-center gap-2 p-2">
+              <Search className="ml-2 h-5 w-5 shrink-0 text-signal" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter" && hits[0]) chooseAddress(hits[0]); if (event.key === "Escape") setSearchOpen(false); }}
+                placeholder="Pesquisar endereço ou local"
+                className="h-11 min-w-0 flex-1 bg-transparent text-sm text-paper outline-none placeholder:text-muted"
+              />
+              <button type="button" onClick={() => { setSearchOpen(false); setQuery(""); setHits([]); }} className="grid h-9 w-9 place-items-center rounded-full text-muted" aria-label="Fechar pesquisa"><X className="h-5 w-5" /></button>
+            </div>
+            {searching ? <p className="px-4 pb-3 text-xs text-muted">Buscando no TomTom…</p> : null}
+            {searchMessage ? <p className="px-4 pb-3 text-xs text-muted">{searchMessage}</p> : null}
+            {hits.length ? <div className="max-h-56 overflow-y-auto border-t border-white/10">
+              {hits.map((hit, index) => (
+                <button key={hit.lat + ":" + hit.lng + ":" + index} type="button" onClick={() => chooseAddress(hit)} className="flex w-full items-start gap-3 border-b border-white/5 px-4 py-3 text-left last:border-0 hover:bg-white/5">
+                  <Navigation className="mt-0.5 h-4 w-4 shrink-0 text-signal" />
+                  <span className="text-sm leading-snug text-paper">{hit.label}</span>
+                </button>
+              ))}
+            </div> : null}
+          </div>
+        ) : (
+          <button type="button" onClick={() => setSearchOpen(true)} className="flex h-12 w-full items-center gap-3 rounded-2xl border border-white/20 bg-[#101d19]/90 px-4 text-left text-sm text-muted shadow-xl backdrop-blur-xl">
+            <Search className="h-5 w-5 text-signal" />
+            <span>Pesquisar endereço ou local</span>
+          </button>
+        )}
+        {selectedLabel && !searchOpen ? <p className="mt-2 max-w-full truncate rounded-full bg-[#101d19]/85 px-3 py-1.5 text-xs text-paper shadow-lg">{selectedLabel}</p> : null}
+      </div>
       {mapError ? (
-        <div role="alert" className="absolute bottom-3 left-3 right-16 z-30 rounded-2xl border border-danger bg-bg px-4 py-4 text-sm leading-relaxed text-paper shadow-xl">
-          <strong className="mb-2 block text-base text-danger">Não foi possível carregar o mapa</strong>
+        <div role="alert" className="absolute bottom-3 left-3 right-3 z-30 rounded-2xl border border-danger bg-bg px-4 py-4 text-sm leading-relaxed text-paper shadow-xl">
+          <strong className="mb-2 block text-base text-danger">Mapa TomTom indisponível</strong>
           <p className="break-words">{mapError}</p>
-          <button type="button" className="mt-3 rounded-xl border border-line px-4 py-2 font-semibold" onClick={() => { setMapError(""); setReady(false); setMapRetry((value) => value + 1); }}>Tentar novamente</button>
+          <button type="button" className="mt-3 rounded-xl border border-line px-4 py-2 font-semibold" onClick={() => { setMapError(""); setMapRetry((value) => value + 1); }}>Tentar novamente</button>
         </div>
       ) : null}
-      <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
-        <IconButton label="Onde estou" pressed={liveStatus === "ativo"} onClick={locate}>
-          <LocateFixed className="h-5 w-5" />
-        </IconButton>
-        <IconButton label={classicMap ? "Mapa detalhado" : "Mapa clássico"} pressed={classicMap} onClick={toggleView}>
-          <Layers2 className="h-5 w-5" />
-        </IconButton>
-        <IconButton label="Seguir posição" pressed={follow} onClick={() => useDelivery.getState().setFollow(!useDelivery.getState().follow)}>
-          <Crosshair className="h-5 w-5" />
-        </IconButton>
+      <div className="absolute right-3 top-[4.5rem] z-10 flex flex-col gap-2">
+        <IconButton label="Onde estou" pressed={liveStatus === "ativo"} onClick={locate}><LocateFixed className="h-5 w-5" /></IconButton>
+        <IconButton label={darkStyle ? "Mapa claro" : "Mapa escuro"} pressed={darkStyle} onClick={toggleStyle}><Layers2 className="h-5 w-5" /></IconButton>
+        <IconButton label="Seguir posição" pressed={follow} onClick={() => useDelivery.getState().setFollow(!useDelivery.getState().follow)}><Crosshair className="h-5 w-5" /></IconButton>
         <IconButton label="Enquadrar rota" onClick={() => {
-          const route = routeRef.current;
-          if (route && mapRef.current) mapRef.current.fitBounds(route.getBounds().pad(0.18), { maxZoom: 17 });
-          else useDelivery.getState().requestFit();
-        }}>
-          <Maximize2 className="h-5 w-5" />
-        </IconButton>
-        <IconButton label="Base aqui" onClick={() => useDelivery.getState().pinBaseHere()}>
-          <Home className="h-5 w-5" />
-        </IconButton>
+          const points = useDelivery.getState().routeLine;
+          if (points.length > 1 && mapRef.current) {
+            const bounds = new maplibregl.LngLatBounds();
+            points.forEach((point) => bounds.extend([point.lng, point.lat]));
+            mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 17, duration: 700 });
+          } else useDelivery.getState().requestFit();
+        }}><Maximize2 className="h-5 w-5" /></IconButton>
+        <IconButton label="Base aqui" onClick={() => useDelivery.getState().pinBaseHere()}><Home className="h-5 w-5" /></IconButton>
       </div>
     </div>
   );
