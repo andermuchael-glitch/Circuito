@@ -34,6 +34,7 @@ export function MapView() {
   const previousPosition = useRef<LatLng | null>(null);
   const headingRef = useRef(0);
   const fitted = useRef(-1);
+  const draftLocationRef = useRef("");
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState("");
   const [mapRetry, setMapRetry] = useState(0);
@@ -58,6 +59,7 @@ export function MapView() {
       String(state.routeRev),
       state.follow ? "1" : "0",
       state.mapPick ? "pick" : "",
+      state.draft?.lat != null && state.draft?.lng != null ? `draft:${state.draft.lat.toFixed(5)},${state.draft.lng.toFixed(5)}` : "",
     ].join("~");
   });
 
@@ -161,6 +163,25 @@ export function MapView() {
       }).addTo(map);
       marker.on("click", () => useDelivery.getState().select(item.id));
       markersRef.current.push(marker);
+    }
+
+    const draft = state.draft;
+    const draftKey = draft?.lat != null && draft?.lng != null
+      ? `${draft.lat.toFixed(5)},${draft.lng.toFixed(5)}`
+      : "";
+    if (draftKey) {
+      const draftMarker = L.marker([draft!.lat!, draft!.lng!], {
+        icon: markerElement("NOVO", "stop"),
+        title: "Endereço da nova comanda",
+        zIndexOffset: 900,
+      }).addTo(map);
+      markersRef.current.push(draftMarker);
+      if (draftKey !== draftLocationRef.current) {
+        draftLocationRef.current = draftKey;
+        map.flyTo([draft!.lat!, draft!.lng!], 17, { duration: 0.6 });
+      }
+    } else {
+      draftLocationRef.current = "";
     }
 
     const runPoints = run?.points ?? [];
