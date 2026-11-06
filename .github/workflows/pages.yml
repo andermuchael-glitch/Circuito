@@ -26,7 +26,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Instalar SDK oficial TomTom
-        run: npm install --no-save --legacy-peer-deps @tomtom-org/maps-sdk lodash-es
+        run: npm install --no-save --legacy-peer-deps @tomtom-org/maps-sdk lodash-es culori
       - name: Gerar o site
         run: |
           set +e
