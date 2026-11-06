@@ -3,7 +3,7 @@ import { Loader2, MapPin, X } from "lucide-react";
 import { PrimaryButton } from "@/components/bits";
 import { useDelivery } from "@/lib/delivery-store";
 import { parseMoney } from "@/lib/format";
-import { addressWithNumber, searchNominatim } from "@/lib/places";
+import { addressWithNumber, reverseGeocode, searchNominatim } from "@/lib/places";
 
 function diaHoje() {
   const now = new Date();
@@ -31,6 +31,23 @@ export function ComandaForm() {
 
   const endereco = draft?.endereco ?? "";
   const pinned = draft?.lat != null && draft?.lng != null;
+
+  useEffect(() => {
+    if (!pinned || !draft || (endereco.trim() && endereco.trim() !== "Ponto marcado no mapa")) return;
+    const lat = draft.lat;
+    const lng = draft.lng;
+    let cancelled = false;
+    void reverseGeocode({ lat: lat!, lng: lng! })
+      .then((label) => {
+        if (cancelled || !label) return;
+        const current = useDelivery.getState().draft;
+        if (current?.lat === lat && current?.lng === lng) {
+          useDelivery.getState().patchDraft({ endereco: label });
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [pinned, draft?.lat, draft?.lng, endereco]);
 
   useEffect(() => {
     if (pinned) return;
