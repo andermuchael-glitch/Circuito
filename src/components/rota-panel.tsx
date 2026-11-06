@@ -223,12 +223,12 @@ export function RotaPanel() {
           <div className="mt-4 rounded-2xl border border-signal bg-raised p-3">
             <p className="text-xs font-semibold tracking-wide text-muted">DESTINO PESQUISADO</p>
             <p className="mt-1 text-sm font-medium">{searchDestination.label}</p>
-            <PrimaryButton className="mt-3" disabled={Boolean(ativaId)} onClick={() => {
+            <div className="mt-3"><PrimaryButton disabled={Boolean(ativaId)} onClick={() => {
               void holdScreen();
               useDelivery.getState().startDestinationRun(searchDestination);
             }}>
               <Navigation className="h-4 w-4" /> Iniciar corrida até este endereço
-            </PrimaryButton>
+            </PrimaryButton></div>
           </div>
         ) : null}
 
