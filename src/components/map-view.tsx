@@ -94,7 +94,7 @@ export function MapView() {
     try {
       const tomtom = new TomTomMap({
         apiKey,
-        style: darkStyle ? "drivingDark" : "drivingLight",
+        style: darkStyle ? "streetDarkDriving" : "streetLightDriving",
         language: "pt-BR",
         mapLibre: {
           container: host,
@@ -136,7 +136,7 @@ export function MapView() {
       });
       map.on("error", (event) => {
         console.warn("[Circuito TomTom mapa]", event.error);
-        if (!disposed && !map.isStyleLoaded()) setMapError("Não foi possível carregar o mapa TomTom. Verifique a chave e a conexão.");
+        if (!disposed && !map.isStyleLoaded()) setMapError(`Falha ao carregar o mapa TomTom: ${event.error?.message ?? "erro de estilo ou conexão"}. Verifique a chave e as permissões do SDK.`);
       });
       const resize = new ResizeObserver(() => map.resize());
       resize.observe(host);
@@ -156,7 +156,7 @@ export function MapView() {
       };
     } catch (error) {
       console.error("[Circuito] Falha ao iniciar TomTom", error);
-      setMapError("Não foi possível iniciar o mapa TomTom neste aparelho.");
+      setMapError(`Falha ao iniciar o mapa: ${error instanceof Error ? error.message : String(error)}. Verifique a compatibilidade WebGL e a chave TomTom.`);
     }
   }, [mapRetry, darkStyle]);
 
