@@ -227,3 +227,35 @@ export async function searchNominatim(query: string, near?: LatLng | null) {
   }
   return hits.slice(0, 5);
 }
+
+export async function reverseGeocode(pin: LatLng): Promise<string | null> {
+  const params = new URLSearchParams({
+    format: "jsonv2",
+    lat: String(pin.lat),
+    lon: String(pin.lng),
+    zoom: "18",
+    addressdetails: "1",
+  });
+  const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
+    headers: { Accept: "application/json", "Accept-Language": "pt-BR" },
+  });
+  if (!response.ok) return null;
+  const data = await response.json() as {
+    name?: string;
+    display_name?: string;
+    address?: {
+      road?: string; pedestrian?: string; residential?: string; house_number?: string;
+      suburb?: string; neighbourhood?: string; city?: string; town?: string; municipality?: string;
+      state?: string;
+    };
+  };
+  const address = data.address ?? {};
+  const street = address.road ?? address.pedestrian ?? address.residential ?? data.name;
+  if (street) {
+    const line = [street, address.house_number].filter(Boolean).join(", ");
+    const area = address.suburb ?? address.neighbourhood;
+    const city = address.city ?? address.town ?? address.municipality;
+    return [line, area, city].filter(Boolean).join(" - ");
+  }
+  return data.display_name?.split(",").slice(0, 4).join(", ").trim() ?? null;
+}
