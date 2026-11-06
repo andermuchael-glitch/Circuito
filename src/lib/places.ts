@@ -236,26 +236,49 @@ export async function reverseGeocode(pin: LatLng): Promise<string | null> {
     zoom: "18",
     addressdetails: "1",
   });
-  const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
-    headers: { Accept: "application/json", "Accept-Language": "pt-BR" },
-  });
-  if (!response.ok) return null;
-  const data = await response.json() as {
-    name?: string;
-    display_name?: string;
-    address?: {
-      road?: string; pedestrian?: string; residential?: string; house_number?: string;
-      suburb?: string; neighbourhood?: string; city?: string; town?: string; municipality?: string;
-      state?: string;
-    };
-  };
-  const address = data.address ?? {};
-  const street = address.road ?? address.pedestrian ?? address.residential ?? data.name;
-  if (street) {
-    const line = [street, address.house_number].filter(Boolean).join(", ");
-    const area = address.suburb ?? address.neighbourhood;
-    const city = address.city ?? address.town ?? address.municipality;
-    return [line, area, city].filter(Boolean).join(" - ");
+
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`, {
+      headers: { Accept: "application/json", "Accept-Language": "pt-BR" },
+    });
+    if (response.ok) {
+      const data = await response.json() as {
+        name?: string;
+        display_name?: string;
+        address?: {
+          road?: string; pedestrian?: string; residential?: string; house_number?: string;
+          suburb?: string; neighbourhood?: string; city?: string; town?: string; municipality?: string;
+        };
+      };
+      const address = data.address ?? {};
+      const street = address.road ?? address.pedestrian ?? address.residential ?? data.name;
+      if (street) {
+        const line = [street, address.house_number].filter(Boolean).join(", ");
+        const area = address.suburb ?? address.neighbourhood;
+        const city = address.city ?? address.town ?? address.municipality;
+        return [line, area, city].filter(Boolean).join(" - ");
+      }
+      const label = data.display_name?.split(",").slice(0, 4).join(", ").trim();
+      if (label) return label;
+    }
+  } catch {
+    // Try the independent Photon reverse-geocoding service below.
   }
-  return data.display_name?.split(",").slice(0, 4).join(", ").trim() ?? null;
+
+  try {
+    const photonParams = new URLSearchParams({ lat: String(pin.lat), lon: String(pin.lng), lang: "pt" });
+    const response = await fetch(`https://photon.komoot.io/reverse?${photonParams.toString()}`, {
+      headers: { Accept: "application/json", "Accept-Language": "pt-BR" },
+    });
+    if (!response.ok) return null;
+    const data = await response.json() as {
+      features?: Array<{ properties?: { name?: string; street?: string; housenumber?: string; district?: string; city?: string; state?: string } }>;
+    };
+    const props = data.features?.[0]?.properties;
+    if (!props) return null;
+    const street = [props.street ?? props.name, props.housenumber].filter(Boolean).join(", ");
+    return [street, props.district, props.city, props.state].filter(Boolean).join(" - ") || null;
+  } catch {
+    return null;
+  }
 }
