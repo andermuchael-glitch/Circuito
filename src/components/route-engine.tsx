@@ -14,6 +14,10 @@ export function RouteEngine() {
   const previewKey = useDelivery((state) => state.previewIds.join(","));
   const ativaId = useDelivery((state) => state.ativaId);
   const ordemKey = useDelivery((state) => corridaAtiva(state)?.ordem.join(",") ?? "");
+  const destinationKey = useDelivery((state) => {
+    const destination = corridaAtiva(state)?.destino;
+    return destination ? `${destination.lat},${destination.lng}` : "";
+  });
   const feitasKey = useDelivery((state) => corridaAtiva(state)?.feitas.join(",") ?? "");
   const pinsKey = useDelivery((state) =>
     state.comandas
@@ -41,7 +45,10 @@ export function RouteEngine() {
       return;
     }
 
-    const waypoints = [origin, ...stops, home];
+    const destination = run?.destino;
+    const waypoints = destination
+      ? [origin, { lat: destination.lat, lng: destination.lng }]
+      : [origin, ...stops, home];
     let cancel = false;
     const timer = window.setTimeout(() => {
       void drivingRoute(waypoints).then((routed) => {
@@ -63,7 +70,7 @@ export function RouteEngine() {
       cancel = true;
       window.clearTimeout(timer);
     };
-  }, [here, previewKey, ativaId, ordemKey, feitasKey, pinsKey]);
+  }, [here, previewKey, ativaId, ordemKey, feitasKey, pinsKey, destinationKey]);
 
   return null;
 }
