@@ -1,36 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Map as MapLibreMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
-import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { Home, LocateFixed, Maximize2, Crosshair, Layers2 } from "lucide-react";
 import { IconButton } from "@/components/bits";
-import { comPin, corridaAtiva, nextStop, partida, useDelivery } from "@/lib/delivery-store";
+import { comPin, corridaAtiva, nextStop, useDelivery } from "@/lib/delivery-store";
 import { bearing, type LatLng } from "@/lib/geo";
 import { startOfToday } from "@/lib/format";
-import "maplibre-gl/dist/maplibre-gl.css";
-
-// Configuração oficial do MapLibre 6 para Vite: inclui o worker e o shared chunk.
-setWorkerUrl(workerUrl);
-
-
-type FeatureCollection = {
-  type: "FeatureCollection";
-  features: Array<{
-    type: "Feature";
-    properties: Record<string, never>;
-    geometry: { type: "LineString"; coordinates: [number, number][] };
-  }>;
-};
-
-function lineData(points: LatLng[]): FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: points.length > 1 ? [{
-      type: "Feature",
-      properties: {},
-      geometry: { type: "LineString", coordinates: points.map((point) => [point.lng, point.lat]) },
-    }] : [],
-  };
-}
 
 function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") {
   const el = document.createElement("div");
@@ -42,14 +17,20 @@ function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") 
   } else {
     el.textContent = label;
   }
-  return el;
+  return L.divIcon({
+    className: "circuito-leaflet-marker",
+    html: el,
+    iconSize: kind === "rider" ? [48, 48] : kind === "base" ? [54, 32] : [42, 42],
+    iconAnchor: kind === "base" ? [27, 16] : kind === "rider" ? [24, 24] : [21, 21],
+  });
 }
 
 export function MapView() {
   const hostRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
-  const markersRef = useRef<Marker[]>([]);
-  const riderRef = useRef<Marker | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<L.Marker[]>([]);
+  const riderRef = useRef<L.Marker | null>(null);
+  const routeRef = useRef<L.Polyline | null>(null);
   const previousPosition = useRef<LatLng | null>(null);
   const headingRef = useRef(0);
   const fitted = useRef(-1);
@@ -88,73 +69,55 @@ export function MapView() {
     const loadTimeout = window.setTimeout(() => {
       if (!disposed && !loaded) setMapError("O mapa demorou para responder. Verifique a conexão e toque em Tentar novamente.");
     }, 12000);
-    const initial = useDelivery.getState().gaze ?? useDelivery.getState().base ?? { lat: -26.99, lng: -48.64 };
-    const map = new MapLibreMap({
-      container: host,
-      // OpenStreetMap como base estável e gratuita, sem depender de chave/API.
-      // Isso também permite isolar problemas de autorização da TomTom.
-      style: {
-        version: 8,
-        sources: {
-          "base-raster": {
-            type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            maxzoom: 19,
-          },
-        },
-        layers: [{ id: "base-raster", type: "raster", source: "base-raster" }],
-      },
-      center: [initial.lng, initial.lat],
-      zoom: 15,
-      pitch: 0,
+    const state = useDelivery.getState();
+    const initial = state.gaze ?? state.base ?? { lat: -26.99, lng: -48.64 };
+
+    const map = L.map(host, {
+      zoomControl: false,
       attributionControl: true,
-      maxPitch: 60,
-    });
-    map.on("error", (event) => {
-      if (disposed) return;
-      const message = event.error?.message ?? "Falha ao carregar os blocos do mapa";
-      console.error("[Circuito mapa]", event.error);
-      setMapError(message);
-    });
-    map.on("load", () => {
+      preferCanvas: true,
+    }).setView([initial.lat, initial.lng], 15);
+
+    const tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      crossOrigin: true,
+    }).addTo(map);
+
+    tiles.once("load", () => {
       if (disposed) return;
       loaded = true;
       window.clearTimeout(loadTimeout);
-      map.addSource("circuito-route", { type: "geojson", data: lineData([]) });
-      map.addLayer({
-        id: "circuito-route-casing",
-        type: "line",
-        source: "circuito-route",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#ffffff", "line-width": 10, "line-opacity": 0.92 },
-      });
-      map.addLayer({
-        id: "circuito-route-line",
-        type: "line",
-        source: "circuito-route",
-        layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#1677ed", "line-width": 6 },
-      });
+      setMapError("");
       setReady(true);
     });
-    map.on("click", (event) => {
-      const state = useDelivery.getState();
-      if (state.mapPick) state.dropPin({ lat: event.lngLat.lat, lng: event.lngLat.lng });
+    tiles.on("tileerror", (event) => {
+      if (disposed) return;
+      console.error("[Circuito mapa] Falha ao carregar bloco OSM", event);
+      setMapError("Não foi possível carregar os blocos do OpenStreetMap. Confira a conexão e tente novamente.");
     });
+    map.on("click", (event) => {
+      const current = useDelivery.getState();
+      if (current.mapPick) current.dropPin({ lat: event.latlng.lat, lng: event.latlng.lng });
+    });
+
     mapRef.current = map;
-    const resize = new ResizeObserver(() => map.resize());
+    const resize = new ResizeObserver(() => map.invalidateSize({ pan: false }));
     resize.observe(host);
+    const initialResize = window.setTimeout(() => map.invalidateSize({ pan: false }), 150);
+
     return () => {
       disposed = true;
       window.clearTimeout(loadTimeout);
+      window.clearTimeout(initialResize);
       resize.disconnect();
       markersRef.current.forEach((marker) => marker.remove());
       riderRef.current?.remove();
+      routeRef.current?.remove();
       map.remove();
       mapRef.current = null;
       riderRef.current = null;
+      routeRef.current = null;
       markersRef.current = [];
       setReady(false);
     };
@@ -172,8 +135,11 @@ export function MapView() {
     markersRef.current = [];
 
     if (state.base) {
-      markersRef.current.push(new Marker({ element: markerElement("BASE", "base"), anchor: "center" })
-        .setLngLat([state.base.lng, state.base.lat]).addTo(map));
+      markersRef.current.push(L.marker([state.base.lat, state.base.lng], {
+        icon: markerElement("BASE", "base"),
+        keyboard: true,
+        title: "Base",
+      }).addTo(map));
     }
 
     const visible = state.comandas.filter(comPin).filter((item) => {
@@ -184,13 +150,16 @@ export function MapView() {
     for (const item of visible) {
       const index = run?.ordem.indexOf(item.id) ?? -1;
       const done = item.status === "entregue";
-      const element = markerElement(index >= 0 ? String(index + 1) : "•", done ? "done" : "stop");
-      if (upcoming?.id === item.id) element.classList.add("is-next");
-      const marker = new Marker({ element, anchor: "center" }).setLngLat([item.lng, item.lat]).addTo(map);
-      element.addEventListener("click", (event) => {
-        event.stopPropagation();
-        useDelivery.getState().select(item.id);
-      });
+      const icon = markerElement(index >= 0 ? String(index + 1) : "•", done ? "done" : "stop");
+      if (upcoming?.id === item.id) {
+        const element = icon.options.html as HTMLElement;
+        element.classList.add("is-next");
+      }
+      const marker = L.marker([item.lat, item.lng], {
+        icon,
+        title: `Comanda ${item.id}`,
+      }).addTo(map);
+      marker.on("click", () => useDelivery.getState().select(item.id));
       markersRef.current.push(marker);
     }
 
@@ -200,8 +169,16 @@ export function MapView() {
       ...(current ? [current] : []),
       ...visible.filter((item) => run?.ordem.includes(item.id) && !run.feitas.includes(item.id)),
     ];
-    const source = map.getSource("circuito-route") as GeoJSONSource | undefined;
-    source?.setData(lineData(route));
+    routeRef.current?.remove();
+    routeRef.current = route.length > 1
+      ? L.polyline(route.map((point) => [point.lat, point.lng] as L.LatLngTuple), {
+          color: "#1677ed",
+          weight: 6,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(map)
+      : null;
 
     if (current) {
       const previous = previousPosition.current;
@@ -210,13 +187,16 @@ export function MapView() {
       }
       previousPosition.current = current;
       if (!riderRef.current) {
-        riderRef.current = new Marker({ element: markerElement("🏍️", "rider"), anchor: "center" })
-          .setLngLat([current.lng, current.lat]).addTo(map);
+        riderRef.current = L.marker([current.lat, current.lng], {
+          icon: markerElement("🏍️", "rider"),
+          interactive: false,
+          zIndexOffset: 1000,
+        }).addTo(map);
       } else {
-        riderRef.current.setLngLat([current.lng, current.lat]);
+        riderRef.current.setLatLng([current.lat, current.lng]);
       }
-      const riderEl = riderRef.current.getElement();
-      riderEl.style.setProperty("--rider-heading", `${headingRef.current}deg`);
+      const riderEl = riderRef.current.getElement()?.querySelector("span");
+      riderEl?.setAttribute("style", `transform: rotate(${headingRef.current}deg)`);
     } else {
       riderRef.current?.remove();
       riderRef.current = null;
@@ -224,35 +204,22 @@ export function MapView() {
 
     if (state.fitToken !== fitted.current) {
       fitted.current = state.fitToken;
-      if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 16, duration: 500 });
+      if (current) map.flyTo([current.lat, current.lng], 16, { duration: 0.5 });
     } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
-      map.easeTo({
-        center: [current.lng, current.lat],
-        zoom: Math.max(map.getZoom(), 16.5),
-        bearing: threeD ? headingRef.current : 0,
-        pitch: threeD ? 52 : 0,
-        duration: 650,
-      });
+      map.flyTo([current.lat, current.lng], Math.max(map.getZoom(), 16.5), { duration: 0.65 });
     }
   }, [ready, tick, tab, threeD]);
-
-  useEffect(() => {
-    if (!ready || !mapRef.current) return;
-    mapRef.current.easeTo({
-      pitch: threeD ? 52 : 0,
-      bearing: threeD ? headingRef.current : 0,
-      duration: 700,
-    });
-  }, [threeD, ready]);
 
   function locate() {
     const state = useDelivery.getState();
     state.setFollow(true);
     if (state.liveStatus !== "ativo" && state.liveStatus !== "buscando") state.enableLive();
     const gaze = useDelivery.getState().gaze;
-    if (gaze && mapRef.current) {
-      mapRef.current.easeTo({ center: [gaze.lng, gaze.lat], zoom: 17, duration: 700 });
-    }
+    if (gaze && mapRef.current) mapRef.current.flyTo([gaze.lat, gaze.lng], 17, { duration: 0.7 });
+  }
+
+  function toggleView() {
+    setThreeD((value) => !value);
   }
 
   return (
@@ -269,13 +236,17 @@ export function MapView() {
         <IconButton label="Onde estou" pressed={liveStatus === "ativo"} onClick={locate}>
           <LocateFixed className="h-5 w-5" />
         </IconButton>
-        <IconButton label={threeD ? "Visão 2D" : "Visão 3D"} pressed={threeD} onClick={() => setThreeD((value) => !value)}>
+        <IconButton label={threeD ? "Visão 2D" : "Visão 3D"} pressed={threeD} onClick={toggleView}>
           <Layers2 className="h-5 w-5" />
         </IconButton>
         <IconButton label="Seguir posição" pressed={follow} onClick={() => useDelivery.getState().setFollow(!useDelivery.getState().follow)}>
           <Crosshair className="h-5 w-5" />
         </IconButton>
-        <IconButton label="Enquadrar rota" onClick={() => useDelivery.getState().requestFit()}>
+        <IconButton label="Enquadrar rota" onClick={() => {
+          const route = routeRef.current;
+          if (route && mapRef.current) mapRef.current.fitBounds(route.getBounds().pad(0.18), { maxZoom: 16 });
+          else useDelivery.getState().requestFit();
+        }}>
           <Maximize2 className="h-5 w-5" />
         </IconButton>
         <IconButton label="Base aqui" onClick={() => useDelivery.getState().pinBaseHere()}>
