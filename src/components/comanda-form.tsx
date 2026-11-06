@@ -45,7 +45,7 @@ export function ComandaForm() {
     setSearchingAddress(true);
     setSearchFinished(false);
     const timer = window.setTimeout(() => {
-      void searchNominatim(query, near)
+      void searchNominatim(query, null)
         .then((found) => {
           if (cancel) return;
           setHits(found);
@@ -64,7 +64,7 @@ export function ComandaForm() {
       cancel = true;
       window.clearTimeout(timer);
     };
-  }, [endereco, pinned, near]);
+  }, [endereco, pinned]);
 
   if (!draft || draft.picking) return null;
 
