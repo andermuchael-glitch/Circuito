@@ -39,13 +39,19 @@ export function ComandaForm() {
     let cancelled = false;
     void reverseGeocode({ lat: lat!, lng: lng! })
       .then((label) => {
-        if (cancelled || !label) return;
+        if (cancelled) return;
         const current = useDelivery.getState().draft;
-        if (current?.lat === lat && current?.lng === lng) {
+        if (current?.lat !== lat || current?.lng !== lng) return;
+        if (label) {
           useDelivery.getState().patchDraft({ endereco: label });
+          setError("");
+        } else {
+          setError("Ponto marcado, mas não foi possível obter o endereço. Tente outro ponto ou digite o endereço.");
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setError("Falha ao consultar o endereço do mapa. Verifique a conexão e tente novamente.");
+      });
     return () => { cancelled = true; };
   }, [pinned, draft?.lat, draft?.lng, endereco]);
 
