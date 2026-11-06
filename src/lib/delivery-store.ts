@@ -36,6 +36,7 @@ export type Corrida = {
   points: TrackPoint[];
   km: number;
   modo: Modo;
+  destino?: { label: string; lat: number; lng: number };
 };
 
 export type Draft = {
@@ -205,6 +206,9 @@ type Store = Persisted & {
   liveAttempt: number;
   liveStatus: LiveStatus;
   previewIds: string[];
+  searchDestination: { label: string; lat: number; lng: number } | null;
+  setSearchDestination: (destination: { label: string; lat: number; lng: number } | null) => void;
+  startDestinationRun: (destination: { label: string; lat: number; lng: number }) => void;
   routeLine: LatLng[];
   routeKm: number | null;
   routeKind: "rua" | "reta" | null;
@@ -286,6 +290,21 @@ export const useDelivery = create<Store>()(
       liveAttempt: 1,
       liveStatus: "buscando",
       previewIds: [],
+      searchDestination: null,
+      setSearchDestination: (searchDestination) => set({ searchDestination }),
+      startDestinationRun: (destination) => {
+        if (get().ativaId) return;
+        const id = crypto.randomUUID();
+        const corrida: Corrida = {
+          id, startedAt: Date.now(), status: "ativa", ordem: [], feitas: [],
+          points: [], km: 0, modo: "gps", destino: destination,
+        };
+        set({ ativaId: id, corridas: [...get().corridas, corrida], tab: "rota",
+          fitToken: get().fitToken + 1, follow: true, previewIds: [],
+          searchDestination: destination, gpsError: null, nearId: null });
+        if (!get().live || get().liveStatus === "off" || get().liveStatus === "negado" || get().liveStatus === "erro") get().enableLive();
+        toast.success("Navegação até o endereço iniciada");
+      },
       routeLine: [],
       routeKm: null,
       routeKind: null,
