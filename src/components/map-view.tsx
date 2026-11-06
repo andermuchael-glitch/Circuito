@@ -100,8 +100,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         mapLibre: {
           container: host,
           center: [initial.lng, initial.lat],
-          zoom: 17,
-          pitch: 48,
+          zoom: 18,
+          pitch: 58,
           bearing: 0,
           maxZoom: 20,
           minZoom: 3,
@@ -227,13 +227,14 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
 
     if (state.fitToken !== fitted.current) {
       fitted.current = state.fitToken;
-      if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 17.5, pitch: 52, duration: 650 });
+      if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 18.2, pitch: 58, offset: [0, 95], duration: 650 });
     } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
       // Modo navegação: a rua fica alinhada com a direção real do deslocamento.
       map.easeTo({
         center: [current.lng, current.lat],
-        zoom: Math.max(map.getZoom(), 17.5),
-        pitch: 52,
+        zoom: Math.max(map.getZoom(), 18.2),
+        pitch: 58,
+        offset: [0, 95],
         bearing: headingRef.current,
         duration: 550,
         essential: true,
@@ -300,7 +301,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     if (state.liveStatus !== "ativo" && state.liveStatus !== "buscando") state.enableLive();
     const position = useDelivery.getState().gaze;
     if (position && mapRef.current) {
-      mapRef.current.easeTo({ center: [position.lng, position.lat], zoom: 18, pitch: 52, bearing: headingRef.current, duration: 800 });
+      mapRef.current.easeTo({ center: [position.lng, position.lat], zoom: 18.2, pitch: 58, bearing: headingRef.current, offset: [0, 95], duration: 800 });
     }
   }
 
