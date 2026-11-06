@@ -8,6 +8,7 @@ import { holdScreen } from "@/lib/screen";
 import { MapView } from "@/components/map-view";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/cn";
+import { calculateTomTomRoute } from "@/lib/tomtom-routing";
 
 export function RotaPanel() {
   const comandas = useDelivery((state) => state.comandas);
@@ -41,6 +42,67 @@ export function RotaPanel() {
     return straightKm(origin, selected) + haversine(selected[selected.length - 1], origin);
   }, [origin, selected]);
   const roadKm = routeKind && selected.length ? routeKm : null;
+
+  const routeStops = useMemo(() => {
+    if (run) {
+      const pending = run.ordem
+        .filter((id) => !run.feitas.includes(id))
+        .map((id) => comandas.find((item) => item.id === id))
+        .filter((item): item is Comanda & { lat: number; lng: number } => Boolean(item && comPin(item)));
+      if (!pending.length) return [];
+      const last = run.points[run.points.length - 1];
+      const start = gaze ?? last ?? origin;
+      return [start, ...pending, base ?? origin];
+    }
+    if (!selected.length) return [];
+    return [origin, ...selected, base ?? origin];
+  }, [
+    run?.id,
+    run?.ordem.join(","),
+    run?.feitas.join(","),
+    run?.points.length,
+    comandas,
+    gaze?.lat,
+    gaze?.lng,
+    origin.lat,
+    origin.lng,
+    base?.lat,
+    base?.lng,
+    selected.map((item) => item.id).join(","),
+  ]);
+
+  const routeRequestKey = routeStops.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(":");
+
+  useEffect(() => {
+    const store = useDelivery.getState();
+    if (routeStops.length < 2 || !import.meta.env.VITE_TOMTOM_API_KEY) {
+      store.setRoute({ line: [], km: null, kind: null });
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void calculateTomTomRoute(routeStops, controller.signal)
+        .then((route) => {
+          if (controller.signal.aborted) return;
+          if (route) {
+            useDelivery.getState().setRoute({ line: route.line, km: route.km, kind: "rua" });
+          } else {
+            useDelivery.getState().setRoute({ line: [], km: null, kind: null });
+          }
+        })
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) return;
+          console.warn("[Circuito TomTom] Não foi possível calcular a rota", error);
+          useDelivery.getState().setRoute({ line: [], km: null, kind: null });
+        });
+    }, 450);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [routeRequestKey]);
   useEffect(() => {
     if (!run || run.modo !== "gps" || liveStatus !== "ativo" || !routeCue || routeKind !== "rua") return;
     if (!voiceEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
