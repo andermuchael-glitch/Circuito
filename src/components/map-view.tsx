@@ -81,9 +81,9 @@ export function MapView() {
       preferCanvas: true,
     }).setView([initial.lat, initial.lng], 16.5);
 
-    const tiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-      maxZoom: 20,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    const tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       crossOrigin: true,
     }).addTo(map);
     tileLayerRef.current = tiles;
@@ -247,9 +247,7 @@ export function MapView() {
     const next = !classicMap;
     setClassicMap(next);
     tileLayerRef.current?.setUrl(
-      next
-        ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     );
   }
 
