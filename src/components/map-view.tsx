@@ -91,22 +91,16 @@ export function MapView() {
     const initial = useDelivery.getState().gaze ?? useDelivery.getState().base ?? { lat: -26.99, lng: -48.64 };
     const map = new MapLibreMap({
       container: host,
-      // Usa os blocos raster da TomTom quando a chave estiver configurada.
-      // Mantém OpenStreetMap como alternativa para ambientes sem a chave.
+      // OpenStreetMap como base estável e gratuita, sem depender de chave/API.
+      // Isso também permite isolar problemas de autorização da TomTom.
       style: {
         version: 8,
         sources: {
           "base-raster": {
             type: "raster",
-            tiles: [
-              import.meta.env.VITE_TOMTOM_API_KEY
-                ? `https://api.tomtom.com/maps/orbis/display/raster/tile/{z}/{x}/{y}?apiVersion=2&style=street-light&key=${encodeURIComponent(import.meta.env.VITE_TOMTOM_API_KEY)}`
-                : "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            ],
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
             tileSize: 256,
-            attribution: import.meta.env.VITE_TOMTOM_API_KEY
-              ? "© TomTom"
-              : '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxzoom: 19,
           },
         },
