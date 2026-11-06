@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Home, LocateFixed, Maximize2, Crosshair, Search, X, Layers2, Navigation } from "lucide-react";
+import { Home, LocateFixed, Maximize2, Minimize2, Crosshair, Search, X, Layers2, Navigation, Volume2, VolumeX, ArrowUpRight, CornerUpLeft, CornerUpRight } from "lucide-react";
 import * as maplibregl from "maplibre-gl";
 import type { Map as MapLibreMap, Marker, GeoJSONSource } from "maplibre-gl";
 import { TomTomMap } from "@tomtom-org/maps-sdk/map";
@@ -12,6 +12,7 @@ import { searchNominatim } from "@/lib/places";
 import { cn } from "@/lib/cn";
 
 type SearchHit = { label: string; lat: number; lng: number };
+type MapViewProps = { navigating?: boolean; destinationLabel?: string; instruction?: string; instructionMeters?: number | null; audioEnabled?: boolean; onToggleAudio?: () => void; expanded?: boolean; onToggleExpanded?: () => void };
 
 function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") {
   const el = document.createElement("div");
@@ -37,7 +38,7 @@ function featureLine(points: LatLng[]) {
   };
 }
 
-export function MapView() {
+export function MapView({ navigating = false, destinationLabel, instruction, instructionMeters, audioEnabled = true, onToggleAudio, expanded = false, onToggleExpanded }: MapViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const tomtomRef = useRef<TomTomMap | null>(null);
@@ -310,7 +311,13 @@ export function MapView() {
   return (
     <div className="relative h-full w-full overflow-hidden">
       <div ref={hostRef} className="absolute inset-0" />
-      <div className="absolute left-3 right-16 top-3 z-20">
+      {navigating ? (
+        <>
+          <div className="absolute left-3 right-16 top-3 z-20 flex items-start gap-2"><div className="min-w-0 flex-1 rounded-2xl border border-white/15 bg-[#071711]/90 px-3 py-2.5 text-white shadow-2xl backdrop-blur-xl"><p className="text-[10px] font-bold tracking-[.16em] text-[#4ade91]">NAVEGANDO PARA</p><p className="truncate text-sm font-semibold">{destinationLabel || "Próxima parada"}</p></div><button type="button" onClick={onToggleExpanded} aria-label={expanded ? "Recolher mapa" : "Expandir mapa"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/15 bg-[#071711]/90 text-white shadow-xl backdrop-blur-xl">{expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}</button></div>
+          <div className="absolute bottom-3 left-3 right-3 z-20 rounded-2xl border border-[#fbbf24]/70 bg-[#071711]/95 p-3 text-white shadow-2xl backdrop-blur-xl"><div className="flex items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#ffb020] text-[#071711]">{instruction?.toLowerCase().includes("esquerda") || instruction?.toLowerCase().includes("left") ? <CornerUpLeft className="h-7 w-7" /> : instruction?.toLowerCase().includes("direita") || instruction?.toLowerCase().includes("right") ? <CornerUpRight className="h-7 w-7" /> : <ArrowUpRight className="h-7 w-7" />}</span><div className="min-w-0 flex-1"><p className="text-[10px] font-bold tracking-[.16em] text-[#9bb5a4]">PRÓXIMA INSTRUÇÃO</p><p className="text-base font-extrabold leading-tight">{instruction || "Calculando caminho pelas ruas…"}</p>{instructionMeters != null ? <p className="mt-1 font-mono text-sm font-bold text-[#ffb020]">{instructionMeters >= 1000 ? `${(instructionMeters / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km` : `${Math.max(0, Math.round(instructionMeters))} m`}</p> : null}</div><button type="button" onClick={onToggleAudio} aria-label={audioEnabled ? "Desativar narração" : "Ativar narração"} className="flex min-w-[58px] shrink-0 flex-col items-center gap-1 rounded-xl border border-white/15 px-2 py-2 text-[9px] font-bold text-[#a9c4b3]">{audioEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}{audioEnabled ? "SOM ON" : "SOM OFF"}</button></div></div>
+        </>
+      ) : null}
+      {!navigating ? <div className="absolute left-3 right-16 top-3 z-20">
         {searchOpen ? (
           <div className="overflow-hidden rounded-2xl border border-white/20 bg-[#101d19]/95 shadow-2xl backdrop-blur-xl">
             <div className="flex items-center gap-2 p-2">
@@ -343,7 +350,7 @@ export function MapView() {
           </button>
         )}
         {selectedLabel && !searchOpen ? <p className="mt-2 max-w-full truncate rounded-full bg-[#101d19]/85 px-3 py-1.5 text-xs text-paper shadow-lg">{selectedLabel}</p> : null}
-      </div>
+      </div> : null}
       {mapError ? (
         <div role="alert" className="absolute bottom-3 left-3 right-3 z-30 rounded-2xl border border-danger bg-bg px-4 py-4 text-sm leading-relaxed text-paper shadow-xl">
           <strong className="mb-2 block text-base text-danger">Mapa TomTom indisponível</strong>
@@ -351,18 +358,18 @@ export function MapView() {
           <button type="button" className="mt-3 rounded-xl border border-line px-4 py-2 font-semibold" onClick={() => { setMapError(""); setMapRetry((value) => value + 1); }}>Tentar novamente</button>
         </div>
       ) : null}
-      <div className="absolute right-3 top-[4.5rem] z-10 flex flex-col gap-2">
+      <div className={`absolute right-3 ${navigating ? "top-[5.5rem]" : "top-[4.5rem]"} z-10 flex flex-col gap-2">
         <IconButton label="Onde estou" pressed={liveStatus === "ativo"} onClick={locate}><LocateFixed className="h-5 w-5" /></IconButton>
         <IconButton label={darkStyle ? "Mapa claro" : "Mapa escuro"} pressed={darkStyle} onClick={toggleStyle}><Layers2 className="h-5 w-5" /></IconButton>
         <IconButton label="Seguir posição" pressed={follow} onClick={() => useDelivery.getState().setFollow(!useDelivery.getState().follow)}><Crosshair className="h-5 w-5" /></IconButton>
-        <IconButton label="Enquadrar rota" onClick={() => {
+        {!navigating ? <IconButton label="Enquadrar rota" onClick={() => {
           const points = useDelivery.getState().routeLine;
           if (points.length > 1 && mapRef.current) {
             const bounds = new maplibregl.LngLatBounds();
             points.forEach((point) => bounds.extend([point.lng, point.lat]));
             mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 17, duration: 700 });
           } else useDelivery.getState().requestFit();
-        }}><Maximize2 className="h-5 w-5" /></IconButton>
+        }}><Maximize2 className="h-5 w-5" /></IconButton> : null}
         <IconButton label="Base aqui" onClick={() => useDelivery.getState().pinBaseHere()}><Home className="h-5 w-5" /></IconButton>
       </div>
     </div>
