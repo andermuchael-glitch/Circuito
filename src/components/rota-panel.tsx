@@ -215,7 +215,7 @@ export function RotaPanel() {
             </button>
           </div>
           <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[55vh] min-h-[340px] max-h-[520px]")}>
-            <MapView />
+            <MapView navigating={run.modo === "gps"} destinationLabel={run.destino?.label ?? upcoming?.endereco ?? "Próxima parada"} instruction={routeKind === "rua" && routeCue ? routeCue.text : routeLoading ? "Calculando caminho pelas ruas…" : routeFailed ? "Falha ao calcular a rota. Confira a conexão." : destinationOnly ? `Siga até ${run.destino?.label ?? "o destino"}` : "Siga pelo trajeto destacado"} instructionMeters={routeKind === "rua" && routeCue ? routeCue.meters : null} audioEnabled={voiceEnabled} onToggleAudio={() => setVoiceEnabled((value) => !value)} expanded={mapExpanded} onToggleExpanded={() => setMapExpanded((value) => !value)} />
           </div>
         </section>
 
@@ -424,44 +424,6 @@ export function RotaPanel() {
           <MapView />
         </div>
       </section>
-
-      {run.modo === "gps" ? (
-        <section className="mt-3 rounded-2xl border border-signal bg-raised p-3">
-          <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-signal text-signal-ink">
-              {routeCue?.modifier?.includes("left") ? <CornerUpLeft className="h-7 w-7" /> :
-                routeCue?.modifier?.includes("right") ? <CornerUpRight className="h-7 w-7" /> :
-                <ArrowUpRight className="h-7 w-7" />}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold tracking-wide text-muted">PRÓXIMA INSTRUÇÃO</p>
-              <p className="text-lg font-bold leading-tight">
-                {routeKind === "rua" && routeCue ? routeCue.text : routeLoading ? "Calculando caminho pelas ruas…" : routeFailed ? "Não foi possível calcular a rota. Verifique a conexão e tente novamente." : destinationOnly ? `Siga até ${run.destino?.label ?? "o destino"}.` : routeKind === "rua" ? "Siga pelo trajeto destacado até a próxima parada." : "Aguardando rota para as paradas."}
-              </p>
-              {routeKind === "rua" && routeCue ? (
-                <p className="mt-1 font-mono text-sm text-signal">
-                  {routeCue.meters >= 1000
-                    ? `${(routeCue.meters / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`
-                    : `${Math.max(0, Math.round(routeCue.meters))} m`}
-                </p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={() => setVoiceEnabled((value) => !value)}
-              aria-label={voiceEnabled ? "Desativar narração" : "Ativar narração"}
-              aria-pressed={voiceEnabled}
-              className={cn("flex min-w-[76px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2 text-[10px] font-semibold", voiceEnabled ? "border-go text-go" : "border-line text-muted")}
-            >
-              {voiceEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
-              {voiceEnabled ? "ÁUDIO ON" : "ÁUDIO OFF"}
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-muted">
-            Navegação assistida pelo Circuito · mantenha o GPS ativo e confira a sinalização da via
-          </p>
-        </section>
-      ) : null}
 
       {gpsError ? <p className="mt-3 rounded-2xl bg-raised px-3 py-2 text-sm text-danger">{gpsError}</p> : null}
       {run.modo === "gps" && gpsMeta.weak ? (
