@@ -17,6 +17,8 @@ export function ComandaForm() {
   const near = useDelivery((state) => state.gaze ?? state.base);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [searchingAddress, setSearchingAddress] = useState(false);
+  const [searchFinished, setSearchFinished] = useState(false);
   const [lote, setLote] = useState(false);
   const [quantidade, setQuantidade] = useState("10");
   const [arrancada, setArrancada] = useState("60");
@@ -33,17 +35,31 @@ export function ComandaForm() {
 
   useEffect(() => {
     const query = endereco.trim();
-    if (query.length < 3 || pinned) { setHits([]); return; }
+    if (query.length < 3 || pinned) {
+      setHits([]);
+      setSearchingAddress(false);
+      setSearchFinished(false);
+      return;
+    }
     let cancel = false;
+    setSearchingAddress(true);
+    setSearchFinished(false);
     const timer = window.setTimeout(() => {
       void searchNominatim(query, near)
         .then((found) => {
-          if (!cancel) setHits(found);
+          if (cancel) return;
+          setHits(found);
+          setSearchFinished(true);
         })
         .catch(() => {
-          if (!cancel) setHits([]);
+          if (cancel) return;
+          setHits([]);
+          setSearchFinished(true);
+        })
+        .finally(() => {
+          if (!cancel) setSearchingAddress(false);
         });
-    }, 700);
+    }, 500);
     return () => {
       cancel = true;
       window.clearTimeout(timer);
@@ -235,8 +251,12 @@ export function ComandaForm() {
 
             {pinned ? (
               <p className="mt-2 text-xs text-go">Endereço localizado e coordenadas prontas para a rota.</p>
-            ) : endereco.trim().length >= 3 ? (
-              <p className="mt-2 text-xs text-muted">Buscando endereço no mapa… escolha uma sugestão para confirmar o local.</p>
+            ) : searchingAddress ? (
+              <p className="mt-2 text-xs text-muted">Pesquisando endereços próximos…</p>
+            ) : searchFinished && hits.length === 0 ? (
+              <p className="mt-2 text-xs text-danger">Nenhum resultado encontrado. Acrescente bairro e cidade, por exemplo: Rua 901, 130, Balneário Camboriú.</p>
+            ) : hits.length > 0 ? (
+              <p className="mt-2 text-xs text-muted">Selecione o endereço correto para posicionar o marcador no mapa.</p>
             ) : null}
           </>
         ) : null}
