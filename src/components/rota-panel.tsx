@@ -215,7 +215,7 @@ export function RotaPanel() {
             </button>
           </div>
           <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[55vh] min-h-[340px] max-h-[520px]")}>
-            <MapView navigating={run.modo === "gps"} destinationLabel={run.destino?.label ?? upcoming?.endereco ?? "Próxima parada"} instruction={routeKind === "rua" && routeCue ? routeCue.text : routeLoading ? "Calculando caminho pelas ruas…" : routeFailed ? "Falha ao calcular a rota. Confira a conexão." : destinationOnly ? `Siga até ${run.destino?.label ?? "o destino"}` : "Siga pelo trajeto destacado"} instructionMeters={routeKind === "rua" && routeCue ? routeCue.meters : null} audioEnabled={voiceEnabled} onToggleAudio={() => setVoiceEnabled((value) => !value)} expanded={mapExpanded} onToggleExpanded={() => setMapExpanded((value) => !value)} />
+            <MapView navigating={false} destinationLabel={searchDestination?.label ?? "Prévia da rota"} instruction={routeLoading ? "Calculando caminho pelas ruas…" : routeFailed ? "Falha ao calcular a rota. Confira a conexão." : searchDestination ? `Destino: ${searchDestination.label}` : "Confira sua posição e as paradas"} instructionMeters={null} audioEnabled={voiceEnabled} onToggleAudio={() => setVoiceEnabled((value) => !value)} expanded={mapExpanded} onToggleExpanded={() => setMapExpanded((value) => !value)} />
           </div>
         </section>
 
