@@ -25,6 +25,7 @@ export function RotaPanel() {
   const routeKm = useDelivery((state) => state.routeKm);
   const routeKind = useDelivery((state) => state.routeKind);
   const routeCue = useDelivery((state) => state.routeCue);
+  const searchDestination = useDelivery((state) => state.searchDestination);
   const run = corridas.find((item) => item.id === ativaId) ?? null;
   const now = useNow(Boolean(run && run.status === "ativa"));
   const [order, setOrder] = useState<string[]>([]);
@@ -49,6 +50,9 @@ export function RotaPanel() {
   const roadKm = routeKind && selected.length ? routeKm : null;
 
   const routeStops = useMemo(() => {
+    if (run?.destino) {
+      return [gaze ?? origin, { lat: run.destino.lat, lng: run.destino.lng }];
+    }
     if (run) {
       const pending = run.ordem
         .filter((id) => !run.feitas.includes(id))
@@ -63,6 +67,8 @@ export function RotaPanel() {
     return [origin, ...selected, base ?? origin];
   }, [
     run?.id,
+    run?.destino?.lat,
+    run?.destino?.lng,
     run?.ordem.join(","),
     run?.feitas.join(","),
     run?.points.length,
@@ -213,6 +219,19 @@ export function RotaPanel() {
           </div>
         </section>
 
+        {searchDestination ? (
+          <div className="mt-4 rounded-2xl border border-signal bg-raised p-3">
+            <p className="text-xs font-semibold tracking-wide text-muted">DESTINO PESQUISADO</p>
+            <p className="mt-1 text-sm font-medium">{searchDestination.label}</p>
+            <PrimaryButton className="mt-3" disabled={Boolean(ativaId)} onClick={() => {
+              void holdScreen();
+              useDelivery.getState().startDestinationRun(searchDestination);
+            }}>
+              <Navigation className="h-4 w-4" /> Iniciar corrida até este endereço
+            </PrimaryButton>
+          </div>
+        ) : null}
+
         <div className="mt-4 flex gap-2">
           <button
             type="button"
@@ -357,6 +376,7 @@ export function RotaPanel() {
   }
 
   const upcoming = nextStop(run, comandas);
+  const destinationOnly = Boolean(run.destino);
   const restantes = run.ordem
     .filter((id) => !run.feitas.includes(id))
     .map((id) => comandas.find((item) => item.id === id)?.endereco)
@@ -392,7 +412,7 @@ export function RotaPanel() {
       )}>
         <div className={cn("flex items-center justify-between gap-3 px-3 py-3", mapExpanded && "pt-[calc(env(safe-area-inset-top)+12px)]")}>
           <div className="min-w-0">
-            <p className="text-sm font-semibold">Mapa da rota</p>
+            <p className="text-sm font-semibold">{destinationOnly ? "Navegação até o destino" : "Mapa da rota"}</p>
             <p className="text-xs text-muted">OpenStreetMap · posição pelo GPS</p>
             <span className={cn("mt-1 inline-flex rounded-full px-2 py-1 text-xs", liveStatus === "ativo" ? "bg-go/15 text-go" : "bg-raised text-muted")}>{liveStatus === "ativo" ? "GPS ativo" : "Aguardando GPS"}</span>
           </div>
@@ -416,7 +436,7 @@ export function RotaPanel() {
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold tracking-wide text-muted">PRÓXIMA INSTRUÇÃO</p>
               <p className="text-lg font-bold leading-tight">
-                {routeKind === "rua" && routeCue ? routeCue.text : routeLoading ? "Calculando caminho pelas ruas…" : routeFailed ? "Não foi possível calcular a rota. Verifique a conexão e tente novamente." : routeKind === "rua" ? "Siga pelo trajeto destacado até a próxima parada." : "Aguardando rota para as paradas."}
+                {routeKind === "rua" && routeCue ? routeCue.text : routeLoading ? "Calculando caminho pelas ruas…" : routeFailed ? "Não foi possível calcular a rota. Verifique a conexão e tente novamente." : destinationOnly ? `Siga até ${run.destino?.label ?? "o destino"}.` : routeKind === "rua" ? "Siga pelo trajeto destacado até a próxima parada." : "Aguardando rota para as paradas."}
               </p>
               {routeKind === "rua" && routeCue ? (
                 <p className="mt-1 font-mono text-sm text-signal">
@@ -452,6 +472,17 @@ export function RotaPanel() {
       ) : null}
       {run.modo === "simulacao" ? (
         <p className="mt-3 text-sm text-muted">Simulação acelerada. Os km são o comprimento real da rota.</p>
+      ) : null}
+
+      {destinationOnly ? (
+        <div className="mt-4 rounded-2xl border border-signal bg-raised p-3">
+          <p className="text-xs font-semibold tracking-wide text-muted">DESTINO</p>
+          <p className="mt-1 font-semibold">{run.destino?.label}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <a href={wazeLink(run.destino?.label ?? "")} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center rounded-full bg-signal text-sm font-semibold text-signal-ink">Waze</a>
+            <a href={googleStopLink(run.destino?.label ?? "")} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center rounded-full border border-line text-sm font-semibold">Google Maps</a>
+          </div>
+        </div>
       ) : null}
 
       <ol className="mt-4 space-y-2">
@@ -533,7 +564,9 @@ export function RotaPanel() {
         </a>
       ) : null}
 
-      {upcoming ? (
+      {destinationOnly ? (
+        <p className="mt-4 rounded-2xl bg-go px-3 py-3 text-sm font-semibold text-ink">Navegação ativa. Ao chegar, encerre a corrida para registrar os quilômetros.</p>
+      ) : upcoming ? (
         <div className="mt-4">
           <PrimaryButton
             onClick={() => useDelivery.getState().markEntregue(upcoming.id)}
