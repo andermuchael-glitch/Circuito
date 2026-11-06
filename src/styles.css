@@ -344,3 +344,24 @@
 .circuito-search-pin span {
   display: block; width: 8px; height: 8px; margin: 6px; border-radius: 50%; background: #102018;
 }
+
+
+/* Marcador de motocicleta com volume e profundidade para navegação */
+.circuito-map-marker-rider {
+  width: 62px !important;
+  height: 62px !important;
+  border: 3px solid rgba(255,255,255,.98) !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle at 32% 24%, #65b7ff 0%, #1677ed 48%, #06449f 100%) !important;
+  box-shadow: 0 3px 0 #073b82, 0 9px 18px rgba(0,0,0,.42), 0 0 0 5px rgba(22,119,237,.18) !important;
+  transform: perspective(140px) rotateX(10deg);
+  z-index: 30;
+}
+.circuito-map-marker-rider span {
+  display: block;
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(0 3px 2px rgba(0,0,0,.65));
+  transform: rotate(-18deg) scale(1.04);
+  text-shadow: 0 1px 0 rgba(255,255,255,.35);
+}
