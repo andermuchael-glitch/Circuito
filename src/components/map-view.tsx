@@ -359,7 +359,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           <button type="button" className="mt-3 rounded-xl border border-line px-4 py-2 font-semibold" onClick={() => { setMapError(""); setMapRetry((value) => value + 1); }}>Tentar novamente</button>
         </div>
       ) : null}
-      <div className={`absolute right-3 ${navigating ? "top-[5.5rem]" : "top-[4.5rem]"} z-10 flex flex-col gap-2">
+      <div className={`absolute right-3 ${navigating ? "top-[5.5rem]" : "top-[4.5rem]"} z-10 flex flex-col gap-2`}>
         <IconButton label="Onde estou" pressed={liveStatus === "ativo"} onClick={locate}><LocateFixed className="h-5 w-5" /></IconButton>
         <IconButton label={darkStyle ? "Mapa claro" : "Mapa escuro"} pressed={darkStyle} onClick={toggleStyle}><Layers2 className="h-5 w-5" /></IconButton>
         <IconButton label="Seguir posição" pressed={follow} onClick={() => useDelivery.getState().setFollow(!useDelivery.getState().follow)}><Crosshair className="h-5 w-5" /></IconButton>
