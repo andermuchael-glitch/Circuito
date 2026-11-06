@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Home, LocateFixed, Maximize2, Crosshair, Search, X, Layers2, Navigation } from "lucide-react";
-import maplibregl, { type Map as MapLibreMap, type Marker } from "maplibre-gl";
+import maplibregl, { type Map as MapLibreMap, type Marker, type GeoJSONSource } from "maplibre-gl";
 import { TomTomMap } from "@tomtom-org/maps-sdk/map";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { IconButton } from "@/components/bits";
@@ -59,7 +59,6 @@ export function MapView() {
   const follow = useDelivery((state) => state.follow);
   const tab = useDelivery((state) => state.tab);
   const liveStatus = useDelivery((state) => state.liveStatus);
-  const gaze = useDelivery((state) => state.gaze);
 
   const tick = useDelivery((state) => {
     const run = corridaAtiva(state);
@@ -198,7 +197,7 @@ export function MapView() {
     }
 
     const route = state.routeLine;
-    const source = map.getSource("circuito-route") as maplibregl.GeoJSONSource | undefined;
+    const source = map.getSource("circuito-route") as GeoJSONSource | undefined;
     source?.setData(featureLine(route.length > 1 ? route : []));
     const current = state.gaze ?? run?.points[run.points.length - 1] ?? null;
     if (current) {
@@ -253,7 +252,7 @@ export function MapView() {
     const timer = window.setTimeout(() => {
       setSearching(true);
       setSearchMessage("");
-      void searchNominatim(query.trim(), gaze).then((results) => {
+      void searchNominatim(query.trim(), useDelivery.getState().gaze).then((results) => {
         if (controller.signal.aborted) return;
         setHits(results);
         setSearchMessage(results.length ? "" : "Nenhum endereço encontrado. Tente incluir rua, número e cidade.");
@@ -269,7 +268,7 @@ export function MapView() {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query, gaze?.lat, gaze?.lng, ready]);
+  }, [query, ready]);
 
   function chooseAddress(hit: SearchHit) {
     const map = mapRef.current;
