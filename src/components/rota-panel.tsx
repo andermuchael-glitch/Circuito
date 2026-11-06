@@ -9,6 +9,7 @@ import { MapView } from "@/components/map-view";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/cn";
 import { calculateTomTomRoute } from "@/lib/tomtom-routing";
+import { drivingRoute } from "@/lib/routing";
 
 export function RotaPanel() {
   const comandas = useDelivery((state) => state.comandas);
@@ -29,7 +30,11 @@ export function RotaPanel() {
   const [order, setOrder] = useState<string[]>([]);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    try { return localStorage.getItem("circuito-voice-guidance") !== "off"; } catch { return true; }
+  });
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [routeFailed, setRouteFailed] = useState(false);
   const lastSpokenCue = useRef("");
 
   const abertas = comandas.filter(comPin).filter((item) => item.status === "aberta");
@@ -75,29 +80,44 @@ export function RotaPanel() {
 
   useEffect(() => {
     const store = useDelivery.getState();
-    if (routeStops.length < 2 || !import.meta.env.VITE_TOMTOM_API_KEY) {
-      store.setRoute({ line: [], km: null, kind: null });
+    if (routeStops.length < 2) {
+      store.setRoute({ line: [], km: null, kind: null, cue: null });
+      setRouteLoading(false);
+      setRouteFailed(false);
       return;
     }
-
     const controller = new AbortController();
+    setRouteLoading(true);
+    setRouteFailed(false);
     const timer = window.setTimeout(() => {
-      void calculateTomTomRoute(routeStops, controller.signal)
-        .then((route) => {
+      void (async () => {
+        try {
+          // OSRM fornece o trajeto e as instruções; TomTom fica como alternativa.
+          const osrm = await drivingRoute(routeStops);
           if (controller.signal.aborted) return;
-          if (route) {
-            useDelivery.getState().setRoute({ line: route.line, km: route.km, kind: "rua" });
-          } else {
-            useDelivery.getState().setRoute({ line: [], km: null, kind: null });
+          if (osrm) {
+            useDelivery.getState().setRoute({ line: osrm.points, km: osrm.km, kind: "rua", cue: osrm.cue });
+            setRouteLoading(false);
+            return;
           }
-        })
-        .catch((error: unknown) => {
+          const tomtom = await calculateTomTomRoute(routeStops, controller.signal);
           if (controller.signal.aborted) return;
-          console.warn("[Circuito TomTom] Não foi possível calcular a rota", error);
-          useDelivery.getState().setRoute({ line: [], km: null, kind: null });
-        });
-    }, 450);
-
+          if (tomtom) {
+            useDelivery.getState().setRoute({ line: tomtom.line, km: tomtom.km, kind: "rua", cue: null });
+          } else {
+            useDelivery.getState().setRoute({ line: [], km: null, kind: null, cue: null });
+            setRouteFailed(true);
+          }
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          console.warn("[Circuito] Falha ao calcular rota viária", error);
+          useDelivery.getState().setRoute({ line: [], km: null, kind: null, cue: null });
+          setRouteFailed(true);
+        } finally {
+          if (!controller.signal.aborted) setRouteLoading(false);
+        }
+      })();
+    }, 900);
     return () => {
       window.clearTimeout(timer);
       controller.abort();
@@ -121,6 +141,7 @@ export function RotaPanel() {
   }, [run?.id, run?.modo, liveStatus, routeCue?.text, routeCue?.meters, routeKind, voiceEnabled, lastSpokenCue]);
 
   useEffect(() => {
+    try { localStorage.setItem("circuito-voice-guidance", voiceEnabled ? "on" : "off"); } catch { /* preferência opcional */ }
     if (!voiceEnabled && typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
@@ -395,7 +416,7 @@ export function RotaPanel() {
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold tracking-wide text-muted">PRÓXIMA INSTRUÇÃO</p>
               <p className="text-lg font-bold leading-tight">
-                {routeKind === "rua" && routeCue ? routeCue.text : "Calculando caminho pelas ruas…"}
+                {routeKind === "rua" && routeCue ? routeCue.text : routeLoading ? "Calculando caminho pelas ruas…" : routeFailed ? "Não foi possível calcular a rota. Verifique a conexão e tente novamente." : routeKind === "rua" ? "Siga pelo trajeto destacado até a próxima parada." : "Aguardando rota para as paradas."}
               </p>
               {routeKind === "rua" && routeCue ? (
                 <p className="mt-1 font-mono text-sm text-signal">
@@ -408,11 +429,12 @@ export function RotaPanel() {
             <button
               type="button"
               onClick={() => setVoiceEnabled((value) => !value)}
-              aria-label={voiceEnabled ? "Desativar instruções por voz" : "Ativar instruções por voz"}
+              aria-label={voiceEnabled ? "Desativar narração" : "Ativar narração"}
               aria-pressed={voiceEnabled}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line"
+              className={cn("flex min-w-[76px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2 text-[10px] font-semibold", voiceEnabled ? "border-go text-go" : "border-line text-muted")}
             >
               {voiceEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+              {voiceEnabled ? "ÁUDIO ON" : "ÁUDIO OFF"}
             </button>
           </div>
           <p className="mt-2 text-xs text-muted">
