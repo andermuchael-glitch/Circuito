@@ -19,7 +19,8 @@ function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") 
   el.className = `circuito-map-marker circuito-map-marker-${kind}`;
   if (kind === "rider") {
     const symbol = document.createElement("span");
-    symbol.textContent = label;
+    symbol.setAttribute("aria-label", "Posição da motocicleta");
+    symbol.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 8h7l5 13-5 8h-8l-5-8zM44 8h7l6 13-5 8h-8l-5-8z" fill="#101820" stroke="#dbeafe" stroke-width="2.5"/><path d="M23 17 32 12l9 5 7 17-7 13H23l-7-13z" fill="#ef4444" stroke="#fff" stroke-width="2.5"/><path d="m26 27 6-5 6 5 4 12H22z" fill="#1d4ed8" stroke="#bfdbfe" stroke-width="2"/><circle cx="32" cy="33" r="4" fill="#fbbf24"/><path d="M21 47h22" stroke="#e5e7eb" stroke-width="3" stroke-linecap="round"/></svg>';
     el.appendChild(symbol);
   } else {
     el.textContent = label;
