@@ -27,7 +27,22 @@ jobs:
       - run: npm ci
       - name: Gerar o site
         run: |
-          node scripts/with-app-env.mjs ./node_modules/.bin/vite build || true
+          set +e
+          node scripts/with-app-env.mjs ./node_modules/.bin/vite build > /tmp/vite-build.log 2>&1
+          build_status=$?
+          set -e
+          cat /tmp/vite-build.log
+
+          if [ "$build_status" -ne 0 ]; then
+            if grep -Fq "rolldownOptions.input should not be an html file when building for SSR" /tmp/vite-build.log \
+              && [ -f node_modules/.nitro/vite/services/ssr/index.js ]; then
+              echo "::warning::Vite/Nitro reported its known secondary SSR-build error after generating the Pages SSR bundle; validating the final static output."
+            else
+              echo "::error::Vite build failed before producing a usable Pages bundle."
+              exit "$build_status"
+            fi
+          fi
+
           node scripts/finalize-pages.mjs
         env:
           NITRO_PRESET: github_pages
