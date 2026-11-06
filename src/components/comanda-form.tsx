@@ -3,7 +3,7 @@ import { Loader2, MapPin, X } from "lucide-react";
 import { PrimaryButton } from "@/components/bits";
 import { useDelivery } from "@/lib/delivery-store";
 import { parseMoney } from "@/lib/format";
-import { addressWithNumber, reverseGeocode, searchNominatim } from "@/lib/places";
+import { addressWithNumber, searchNominatim } from "@/lib/places";
 
 function diaHoje() {
   const now = new Date();
@@ -17,7 +17,6 @@ export function ComandaForm() {
   const near = useDelivery((state) => state.gaze ?? state.base);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [marcar, setMarcar] = useState(false);
   const [lote, setLote] = useState(false);
   const [quantidade, setQuantidade] = useState("10");
   const [arrancada, setArrancada] = useState("60");
@@ -33,32 +32,8 @@ export function ComandaForm() {
   const pinned = draft?.lat != null && draft?.lng != null;
 
   useEffect(() => {
-    if (!pinned || !draft || (endereco.trim() && endereco.trim() !== "Ponto marcado no mapa")) return;
-    const lat = draft.lat;
-    const lng = draft.lng;
-    let cancelled = false;
-    void reverseGeocode({ lat: lat!, lng: lng! })
-      .then((label) => {
-        if (cancelled) return;
-        const current = useDelivery.getState().draft;
-        if (current?.lat !== lat || current?.lng !== lng) return;
-        if (label) {
-          useDelivery.getState().patchDraft({ endereco: label });
-          setError("");
-        } else {
-          setError("Ponto marcado, mas não foi possível obter o endereço. Tente outro ponto ou digite o endereço.");
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setError("Falha ao consultar o endereço do mapa. Verifique a conexão e tente novamente.");
-      });
-    return () => { cancelled = true; };
-  }, [pinned, draft?.lat, draft?.lng, endereco]);
-
-  useEffect(() => {
-    if (pinned) return;
     const query = endereco.trim();
-    if (query.length < 3) return;
+    if (query.length < 3 || pinned) { setHits([]); return; }
     let cancel = false;
     const timer = window.setTimeout(() => {
       void searchNominatim(query, near)
@@ -111,13 +86,10 @@ export function ComandaForm() {
       });
       return;
     }
-    if (!marcar) {
+    const comEndereco = current.endereco.trim().length >= 3;
+    if (!comEndereco) {
       setError("");
       useDelivery.getState().saveDraft({ valor: taxa, dia, comEndereco: false, arrancada: arrancadaValor });
-      return;
-    }
-    if (current.endereco.trim().length < 3) {
-      setError("Informe o endereço ou desmarque essa opção.");
       return;
     }
     let lat = current.lat;
@@ -128,7 +100,7 @@ export function ComandaForm() {
       try {
         const found = hits.length ? hits : await searchNominatim(enderecoFinal, near);
         if (!found.length) {
-          setError("Endereço não encontrado. Escolha uma sugestão ou marque no mapa.");
+          setError("Endereço não encontrado. Confira o nome da rua, número e bairro.");
           setBusy(false);
           return;
         }
@@ -143,7 +115,7 @@ export function ComandaForm() {
         lng = first.lng;
         enderecoFinal = addressWithNumber(current.endereco, first.label);
       } catch {
-        setError("Não achei o endereço. Marque o ponto no mapa.");
+        setError("Não foi possível localizar esse endereço. Confira os dados e tente novamente.");
         setBusy(false);
         return;
       }
@@ -222,17 +194,6 @@ export function ComandaForm() {
         )}
 
         {!lote ? (
-          <button
-            type="button"
-            onClick={() => setMarcar((value) => !value)}
-            className="mt-3 flex h-12 w-full items-center justify-between rounded-2xl border border-line bg-ink px-3 text-sm font-medium"
-          >
-            Marcar endereço
-            <span className={marcar ? "text-go" : "text-muted"}>{marcar ? "Sim" : "Não"}</span>
-          </button>
-        ) : null}
-
-        {!lote && marcar ? (
           <>
             <label className="mt-3 block text-sm font-medium">
               Endereço
@@ -273,16 +234,10 @@ export function ComandaForm() {
             ) : null}
 
             {pinned ? (
-              <p className="mt-2 text-xs text-go">Endereço localizado no mapa.</p>
-            ) : (
-              <button
-                type="button"
-                onClick={() => useDelivery.getState().startPick()}
-                className="mt-2 text-sm text-muted underline"
-              >
-                Marcar no mapa
-              </button>
-            )}
+              <p className="mt-2 text-xs text-go">Endereço localizado e coordenadas prontas para a rota.</p>
+            ) : endereco.trim().length >= 3 ? (
+              <p className="mt-2 text-xs text-muted">Buscando endereço no mapa… escolha uma sugestão para confirmar o local.</p>
+            ) : null}
           </>
         ) : null}
 
