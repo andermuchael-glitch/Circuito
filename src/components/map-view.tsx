@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Home, LocateFixed, Maximize2, Crosshair, Search, X, Layers2, Navigation } from "lucide-react";
-import maplibregl, { type Map as MapLibreMap, type Marker, type GeoJSONSource } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { Map as MapLibreMap, Marker, GeoJSONSource } from "maplibre-gl";
 import { TomTomMap } from "@tomtom-org/maps-sdk/map";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { IconButton } from "@/components/bits";
