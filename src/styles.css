@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
-@import "maplibre-gl/dist/maplibre-gl.css";
 
 @theme {
   --color-ink: #07110c;
@@ -215,7 +214,7 @@
 }
 
 
-/* Marcadores do mapa MapLibre */
+/* Marcadores do mapa Leaflet */
 .circuito-map-marker {
   display: grid;
   place-items: center;
@@ -268,11 +267,16 @@
   transform: rotate(var(--rider-heading, 0deg));
   line-height: 1;
 }
-.maplibregl-ctrl-attrib {
+.leaflet-control-attribution {
   margin: 0 0 10px 10px !important;
   padding: 3px 7px !important;
   border-radius: 999px;
   background: rgba(255,255,255,.9) !important;
   color: #243128 !important;
   font-size: 10px !important;
+}
+
+.circuito-leaflet-marker {
+  background: transparent !important;
+  border: 0 !important;
 }
