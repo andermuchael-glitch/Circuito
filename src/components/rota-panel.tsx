@@ -428,6 +428,43 @@ export function RotaPanel() {
         </div>
       </section>
 
+      <section className="mt-4 rounded-2xl border border-line bg-raised p-3">
+    <p className="text-sm font-semibold">Compartilhar localização da corrida</p>
+    <p className="mt-1 text-xs text-muted">Gere um link para outra pessoa acompanhar sua posição enquanto o GPS estiver ativo.</p>
+    {shareLink ? (
+      <div className="mt-3 space-y-2">
+        <p className="break-all rounded-xl bg-black/20 p-2 text-xs text-signal">{shareLink}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => void navigator.clipboard.writeText(shareLink)} className="h-10 rounded-full bg-signal text-sm font-semibold text-signal-ink">Copiar link</button>
+          <button type="button" onClick={async () => {
+            const stored = JSON.parse(localStorage.getItem("circuito-live-share") || "null") as { token?: string } | null;
+            if (stored?.token) await stopLiveShare(stored.token).catch(() => undefined);
+            localStorage.removeItem("circuito-live-share");
+            setShareLink("");
+          }} className="h-10 rounded-full border border-line text-sm">Encerrar link</button>
+        </div>
+      </div>
+    ) : (
+      <button type="button" disabled={shareBusy} onClick={async () => {
+        setShareBusy(true);
+        try {
+          const share = await createLiveShare(run.id);
+          const url = new URL(`acompanhar/${share.token}`, window.location.href);
+          const value = { id: share.id, token: share.token, corridaId: run.id };
+          localStorage.setItem("circuito-live-share", JSON.stringify(value));
+          setShareLink(url.toString());
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Não foi possível criar o link.";
+          window.alert(message);
+        } finally { setShareBusy(false); }
+      }} className="mt-3 h-11 w-full rounded-full bg-signal text-sm font-bold text-signal-ink disabled:opacity-50">
+        {shareBusy ? "Gerando link…" : "Gerar link de acompanhamento"}
+      </button>
+    )}
+      </section>
+
+
+
       {gpsError ? <p className="mt-3 rounded-2xl bg-raised px-3 py-2 text-sm text-danger">{gpsError}</p> : null}
       {run.modo === "gps" && gpsMeta.weak ? (
         <p className="mt-3 text-sm text-muted">Sinal fraco{gpsMeta.accuracy ? ` · ±${Math.round(gpsMeta.accuracy)} m` : ""}.</p>
@@ -443,41 +480,6 @@ export function RotaPanel() {
         <div className="mt-4 rounded-2xl border border-signal bg-raised p-3">
           <p className="text-xs font-semibold tracking-wide text-muted">DESTINO</p>
           <p className="mt-1 font-semibold">{run.destino?.label}</p>
-          <section className="mt-4 rounded-2xl border border-line bg-raised p-3">
-        <p className="text-sm font-semibold">Compartilhar localização da corrida</p>
-        <p className="mt-1 text-xs text-muted">Gere um link para outra pessoa acompanhar sua posição enquanto o GPS estiver ativo.</p>
-        {shareLink ? (
-          <div className="mt-3 space-y-2">
-            <p className="break-all rounded-xl bg-black/20 p-2 text-xs text-signal">{shareLink}</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => void navigator.clipboard.writeText(shareLink)} className="h-10 rounded-full bg-signal text-sm font-semibold text-signal-ink">Copiar link</button>
-              <button type="button" onClick={async () => {
-                const stored = JSON.parse(localStorage.getItem("circuito-live-share") || "null") as { token?: string } | null;
-                if (stored?.token) await stopLiveShare(stored.token).catch(() => undefined);
-                localStorage.removeItem("circuito-live-share");
-                setShareLink("");
-              }} className="h-10 rounded-full border border-line text-sm">Encerrar link</button>
-            </div>
-          </div>
-        ) : (
-          <button type="button" disabled={shareBusy} onClick={async () => {
-            setShareBusy(true);
-            try {
-              const share = await createLiveShare(run.id);
-              const url = new URL(`acompanhar/${share.token}`, window.location.href);
-              const value = { id: share.id, token: share.token, corridaId: run.id };
-              localStorage.setItem("circuito-live-share", JSON.stringify(value));
-              setShareLink(url.toString());
-            } catch (error) {
-              const message = error instanceof Error ? error.message : "Não foi possível criar o link.";
-              window.alert(message);
-            } finally { setShareBusy(false); }
-          }} className="mt-3 h-11 w-full rounded-full bg-signal text-sm font-bold text-signal-ink disabled:opacity-50">
-            {shareBusy ? "Gerando link…" : "Gerar link de acompanhamento"}
-          </button>
-        )}
-      </section>
-
       <div className="mt-3 grid grid-cols-2 gap-2">
             <a href={wazeLink(run.destino?.label ?? "")} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center rounded-full bg-signal text-sm font-semibold text-signal-ink">Waze</a>
             <a href={googleStopLink(run.destino?.label ?? "")} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center rounded-full border border-line text-sm font-semibold">Google Maps</a>
