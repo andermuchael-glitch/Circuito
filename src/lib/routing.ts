@@ -9,6 +9,7 @@ export type RouteCue = {
 export type DrivingRoute = {
   points: LatLng[];
   km: number;
+  durationSeconds: number;
   cue: RouteCue | null;
 };
 
@@ -73,6 +74,7 @@ export async function drivingRoute(stops: LatLng[]): Promise<DrivingRoute | null
       code?: string;
       routes?: {
         distance?: number;
+        duration?: number;
         geometry?: { coordinates?: [number, number][] };
         legs?: { steps?: OsrmStep[] }[];
       }[];
@@ -101,6 +103,7 @@ export async function drivingRoute(stops: LatLng[]): Promise<DrivingRoute | null
     const steps = legs.flatMap((leg) => (Array.isArray(leg?.steps) ? leg.steps : []));
     return {
       km: route.distance / 1000,
+      durationSeconds: Number.isFinite(route.duration) ? Math.max(0, route.duration ?? 0) : 0,
       points,
       cue: cueFromSteps(steps),
     };
