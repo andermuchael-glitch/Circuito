@@ -62,7 +62,7 @@ function PublicTracking() {
           <section className="rounded-3xl border border-[#b8f36b]/25 bg-[#101c16] px-6 py-12 text-center">
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#b8f36b]/15 text-3xl">✓</div>
             <h2 className="mt-5 text-2xl font-bold">Corrida encerrada!</h2>
-            <p className="mt-3 text-base text-white/75">Obrigado por acompanhar. Até a próxima!</p>
+            <p className="mt-3 text-base text-white/75">Obrigado por acompanhar! Bom apetite até a próxima!</p>
           </section>
         ) : null}
         {data?.active && lat != null && lng != null ? (
