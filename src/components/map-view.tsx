@@ -19,8 +19,8 @@ function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") 
   el.className = `circuito-map-marker circuito-map-marker-${kind}`;
   if (kind === "rider") {
     const symbol = document.createElement("span");
-    symbol.setAttribute("aria-label", "Posição da motocicleta");
-    symbol.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M20 8h7l5 13-5 8h-8l-5-8zM44 8h7l6 13-5 8h-8l-5-8z" fill="#101820" stroke="#dbeafe" stroke-width="2.5"/><path d="M23 17 32 12l9 5 7 17-7 13H23l-7-13z" fill="#ef4444" stroke="#fff" stroke-width="2.5"/><path d="m26 27 6-5 6 5 4 12H22z" fill="#1d4ed8" stroke="#bfdbfe" stroke-width="2"/><circle cx="32" cy="33" r="4" fill="#fbbf24"/><path d="M21 47h22" stroke="#e5e7eb" stroke-width="3" stroke-linecap="round"/></svg>';
+    symbol.setAttribute("aria-label", "Direção atual");
+    symbol.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 3 57 53 32 43 7 53 32 3Z" fill="#0b3f91" opacity=".9"/><path d="M32 3 52 48 32 39 12 48 32 3Z" fill="#39a5ff" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/><path d="M32 12 43 40 32 35 21 40 32 12Z" fill="#eaf6ff"/><path d="M32 4v48" stroke="#ffffff" stroke-width="2" opacity=".8"/></svg>';
     el.appendChild(symbol);
   } else {
     el.textContent = label;
@@ -220,7 +220,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       } else {
         riderRef.current.setLngLat([current.lng, current.lat]);
       }
-      riderRef.current.setRotation(0);
+      riderRef.current.setRotation(headingRef.current - map.getBearing());
     } else {
       riderRef.current?.remove();
       riderRef.current = null;
@@ -240,7 +240,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         duration: 550,
         essential: true,
       });
-      riderRef.current?.setRotation(0);
+      riderRef.current?.setRotation(headingRef.current - map.getBearing());
     }
   }, [ready, tick, tab]);
 
