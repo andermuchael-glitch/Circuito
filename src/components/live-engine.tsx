@@ -108,12 +108,17 @@ export function LiveEngine() {
         if (permanentToken && currentRun?.status === "ativa" && currentRun.modo === "gps") {
           const latestState = useDelivery.getState();
           const stop = nextStop(currentRun, latestState.comandas);
-          const destination = currentRun.destino ?? (stop ? null : (latestState.base ?? BASE_HOME));
-          const target = currentRun.destino
-            ? { lat: currentRun.destino.lat, lng: currentRun.destino.lng, label: currentRun.destino.label, order: null as string | null, customer: null as string | null, status: "delivery" as const }
-            : stop
-              ? { lat: stop.lat, lng: stop.lng, label: stop.endereco, order: stop.numero, customer: stop.cliente, status: "delivery" as const }
-              : { lat: destination!.lat, lng: destination!.lng, label: "Volta à base", order: null, customer: null, status: "returning" as const };
+          const allDeliveriesDone = currentRun.ordem.length > 0 && currentRun.ordem.every((id) => currentRun.feitas.includes(id));
+          // Quando todas as comandas foram entregues, a próxima etapa é sempre voltar à base.
+          // Não manter um destino antigo de entrega como destino ativo.
+          const destination = latestState.base ?? BASE_HOME;
+          const target = allDeliveriesDone || (!stop && !currentRun.destino)
+            ? { lat: destination.lat, lng: destination.lng, label: "Voltando para a base", order: null as string | null, customer: null as string | null, status: "returning" as const }
+            : currentRun.destino
+              ? { lat: currentRun.destino.lat, lng: currentRun.destino.lng, label: currentRun.destino.label, order: null as string | null, customer: null as string | null, status: "delivery" as const }
+              : stop
+                ? { lat: stop.lat, lng: stop.lng, label: stop.endereco, order: stop.numero, customer: stop.cliente, status: "delivery" as const }
+                : { lat: destination.lat, lng: destination.lng, label: "Voltando para a base", order: null, customer: null, status: "returning" as const };
           const targetKey = `${target.lat.toFixed(5)},${target.lng.toFixed(5)},${target.order ?? target.status}`;
           if (Date.now() - lastPermanentPublish >= 12000 || targetKey !== lastPermanentTarget) {
             lastPermanentPublish = Date.now();
