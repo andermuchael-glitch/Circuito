@@ -78,3 +78,53 @@ export async function stopLiveShare(token: string) {
   if (!response.ok) throw new Error("Não foi possível encerrar o compartilhamento.");
   return response.json();
 }
+
+
+export type PermanentSharePayload = {
+  active: boolean;
+  status: "idle" | "delivery" | "returning" | "delivered";
+  current_order?: string | null;
+  customer?: string | null;
+  destination_label?: string | null;
+  destination_lat?: number | null;
+  destination_lng?: number | null;
+  latest_lat?: number | null;
+  latest_lng?: number | null;
+  speed?: number | null;
+  accuracy?: number | null;
+  distance_m?: number | null;
+  eta_seconds?: number | null;
+  updated_at?: string;
+};
+
+async function rpc<T>(name: string, body: Record<string, unknown>, authenticated = true): Promise<T> {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: authenticated ? `Bearer ${session().access_token}` : `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.message || data?.hint || `Falha em ${name}.`);
+  return data as T;
+}
+
+export async function createPermanentLiveShare(): Promise<string> {
+  const token = await rpc<string>("create_permanent_live_share", {});
+  if (!token) throw new Error("Não foi possível criar o link permanente.");
+  return token;
+}
+
+export async function publishPermanentLiveShare(payload: PermanentSharePayload): Promise<void> {
+  await rpc<boolean>("publish_permanent_live_share", { p_payload: payload });
+}
+
+export async function getPermanentLiveShare(token: string): Promise<{ payload: PermanentSharePayload; updated_at: string } | null> {
+  const rows = await rpc<Array<{ payload: PermanentSharePayload; updated_at: string }>>(
+    "get_permanent_live_share", { p_token: token }, false,
+  );
+  return rows?.[0] ?? null;
+}
