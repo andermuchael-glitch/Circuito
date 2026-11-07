@@ -58,7 +58,14 @@ function PublicTracking() {
         </header>
         {loading ? <p className="rounded-2xl bg-white/5 p-4 text-sm text-white/70">Buscando localização…</p> : null}
         {error ? <p role="status" className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">{error}</p> : null}
-        {data && lat != null && lng != null ? (
+        {data && !data.active ? (
+          <section className="rounded-3xl border border-[#b8f36b]/25 bg-[#101c16] px-6 py-12 text-center">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#b8f36b]/15 text-3xl">✓</div>
+            <h2 className="mt-5 text-2xl font-bold">Corrida encerrada!</h2>
+            <p className="mt-3 text-base text-white/75">Obrigado por acompanhar. Até a próxima!</p>
+          </section>
+        ) : null}
+        {data?.active && lat != null && lng != null ? (
           <>
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#101c16]">
               <iframe title="Mapa da localização compartilhada" src={mapUrl} className="h-[55vh] min-h-[320px] w-full border-0" loading="lazy" />
@@ -71,8 +78,9 @@ function PublicTracking() {
             <a className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-full bg-[#b8f36b] font-semibold text-[#14200f]" target="_blank" rel="noreferrer" href={`https://www.google.com/maps?q=${lat},${lng}`}>Abrir posição no Google Maps</a>
           </>
         ) : null}
-        {data && !data.active ? <p className="mt-4 text-sm text-white/60">O compartilhamento foi encerrado.</p> : null}
-        <p className="mt-6 text-center text-xs text-white/35">A posição só é atualizada enquanto o responsável mantém o GPS e o compartilhamento ativos.</p>
+        {data?.active ? (
+          <p className="mt-6 text-center text-xs text-white/35">A posição só é atualizada enquanto o responsável mantém o GPS e o compartilhamento ativos.</p>
+        ) : null}
       </div>
     </main>
   );
