@@ -621,7 +621,19 @@ export function RotaPanel() {
             <GhostButton onClick={() => setConfirmEnd(false)}>Voltar</GhostButton>
             <button
               type="button"
-              onClick={() => useDelivery.getState().encerrar()}
+              onClick={async () => {
+                const stored = JSON.parse(localStorage.getItem("circuito-live-share") || "null") as { token?: string; corridaId?: string } | null;
+                if (stored?.corridaId === run.id && stored.token) {
+                  try {
+                    await stopLiveShare(stored.token);
+                  } catch (error) {
+                    console.warn("[Circuito] Não foi possível encerrar o link no servidor", error);
+                  }
+                  localStorage.removeItem("circuito-live-share");
+                  setShareLink("");
+                }
+                useDelivery.getState().encerrar();
+              }}
               className="inline-flex h-12 items-center justify-center rounded-full bg-danger px-4 text-sm font-semibold text-ink"
             >
               Confirmar
