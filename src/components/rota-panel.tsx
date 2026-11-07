@@ -217,7 +217,7 @@ export function RotaPanel() {
               {mapExpanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
             </button>
           </div>
-          <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[55vh] min-h-[340px] max-h-[520px]")}>
+          <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[68vh] min-h-[520px]")}>
             <MapView navigating={false} destinationLabel={searchDestination?.label ?? "Prévia da rota"} instruction={routeLoading ? "Calculando caminho pelas ruas…" : routeFailed ? "Falha ao calcular a rota. Confira a conexão." : searchDestination ? `Destino: ${searchDestination.label}` : "Confira sua posição e as paradas"} instructionMeters={null} audioEnabled={voiceEnabled} onToggleAudio={() => setVoiceEnabled((value) => !value)} expanded={mapExpanded} onToggleExpanded={() => setMapExpanded((value) => !value)} />
           </div>
         </section>
@@ -423,7 +423,7 @@ export function RotaPanel() {
             {mapExpanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
           </button>
         </div>
-        <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[55vh] min-h-[340px] max-h-[520px]")}>
+        <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[68vh] min-h-[520px]")}>
           <MapView />
         </div>
       </section>
