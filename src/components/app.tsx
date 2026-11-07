@@ -5,6 +5,7 @@ import { ComandaForm } from "@/components/comanda-form";
 import { ComandasPanel } from "@/components/comandas-panel";
 import { KmPanel } from "@/components/km-panel";
 import { LiveEngine } from "@/components/live-engine";
+import { CloudDataSync } from "@/components/cloud-data-sync";
 import { RouteEngine } from "@/components/route-engine";
 import { RotaPanel } from "@/components/rota-panel";
 import { cn } from "@/lib/cn";
@@ -31,7 +32,8 @@ export function App() {
   }, []);
 
   return (
-    <div className="app-shell flex h-dvh flex-col bg-bg text-paper">
+    <div className="app-shell relative flex h-dvh flex-col bg-bg text-paper">
+      <CloudDataSync />
       <LiveEngine />
       <RouteEngine />
       <Toaster
