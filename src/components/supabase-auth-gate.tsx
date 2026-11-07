@@ -72,7 +72,7 @@ export function SupabaseAuthGate() {
     e.preventDefault(); setBusy(true); setError(""); setMessage("");
     try {
       if (mode === "recover") {
-        await request("recover", { email, redirect_to: location.origin + location.pathname });
+        await request("recover?redirect_to=" + encodeURIComponent(location.origin + location.pathname), { email });
         setMessage("Link enviado. Confira seu e-mail e a caixa de spam.");
       } else if (mode === "reset") {
         if (password.length < 6 || password !== confirm) throw new Error(password.length < 6 ? "Use pelo menos 6 caracteres." : "As senhas não conferem.");
