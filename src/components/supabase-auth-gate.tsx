@@ -82,7 +82,8 @@ export function SupabaseAuthGate() {
         setMessage("Senha atualizada. Entre com a nova senha.");
       } else if (mode === "signup") {
         if (password !== confirm) throw new Error("As senhas não conferem.");
-        const redirectTo = location.origin + location.pathname;\n        const result = await request("signup?redirect_to=" + encodeURIComponent(redirectTo), { email, password });
+        const redirectTo = location.origin + location.pathname;
+        const result = await request("signup?redirect_to=" + encodeURIComponent(redirectTo), { email, password });
         if (result.access_token) { const next = expiry(result as Session & { expires_in?: number }); save(next); setSession(next); }
         else { setMode("login"); setMessage("Cadastro criado. Confirme seu e-mail pelo link enviado para ativar a conta."); }
       } else {
