@@ -346,46 +346,29 @@
 }
 
 
-/* Marcador de motocicleta com volume e profundidade para navegação */
+/* Seta direcional moderna — marcador de posição do GPS */
 .circuito-map-marker-rider {
-  width: 62px !important;
-  height: 62px !important;
-  border: 3px solid rgba(255,255,255,.98) !important;
-  border-radius: 50% !important;
-  background: radial-gradient(circle at 32% 24%, #65b7ff 0%, #1677ed 48%, #06449f 100%) !important;
-  box-shadow: 0 3px 0 #073b82, 0 9px 18px rgba(0,0,0,.42), 0 0 0 5px rgba(22,119,237,.18) !important;
-  transform: perspective(140px) rotateX(10deg);
-  z-index: 30;
-}
-.circuito-map-marker-rider span {
-  display: block;
-  font-size: 34px;
-  line-height: 1;
-  filter: drop-shadow(0 3px 2px rgba(0,0,0,.65));
-  transform: rotate(-18deg) scale(1.04);
-  text-shadow: 0 1px 0 rgba(255,255,255,.35);
-}
-
-
-/* Marcador de moto com silhueta própria para navegação TomTom */
-.circuito-map-marker-rider {
-  width: 58px !important;
-  height: 58px !important;
-  border: 2px solid rgba(255,255,255,.98) !important;
-  border-radius: 50% !important;
-  background: radial-gradient(circle at 34% 22%, #4ea5ff 0%, #1677ed 55%, #06449f 100%) !important;
-  box-shadow: 0 3px 0 #073b82, 0 8px 20px rgba(0,0,0,.55), 0 0 0 5px rgba(22,119,237,.22) !important;
+  width: 54px !important;
+  height: 54px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
   z-index: 40;
+  overflow: visible;
 }
 .circuito-map-marker-rider span {
   display: grid;
   width: 100%;
   height: 100%;
   place-items: center;
-  transform: none !important;
+  line-height: 1;
 }
 .circuito-map-marker-rider svg {
-  width: 39px;
-  height: 39px;
-  filter: drop-shadow(0 2px 2px rgba(0,0,0,.55));
+  width: 54px;
+  height: 54px;
+  overflow: visible;
+  filter: drop-shadow(0 4px 5px rgba(0,0,0,.7)) drop-shadow(0 0 7px rgba(40,145,255,.45));
 }
+
+
