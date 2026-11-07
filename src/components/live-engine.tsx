@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { buildSimPath, corridaAtiva, isDefaultBase, BASE_HOME, useDelivery } from "@/lib/delivery-store";
 import { holdScreen, releaseScreen } from "@/lib/screen";
 import { toast } from "sonner";
+import { publishLivePoint } from "@/lib/live-sharing";
 
 declare global {
   interface Window {
@@ -89,7 +90,19 @@ export function LiveEngine() {
       const run = corridaAtiva(useDelivery.getState());
       if (!run || run.status !== "ativa" || run.modo !== "gps") return;
       if (accuracy != null && accuracy > 120) return;
-      useDelivery.getState().pushPoint({ ...point, t: pos.timestamp || Date.now() });
+      const trackedPoint = { ...point, t: pos.timestamp || Date.now() };
+      useDelivery.getState().pushPoint(trackedPoint);
+      try {
+        const share = JSON.parse(localStorage.getItem("circuito-live-share") || "null") as { id?: string; corridaId?: string } | null;
+        const currentRun = corridaAtiva(useDelivery.getState());
+        if (share?.id && currentRun?.id === share.corridaId) {
+          void publishLivePoint(share.id, { lat: point.lat, lng: point.lng, accuracy, speed, time: trackedPoint.t }, [...currentRun.points, trackedPoint]).catch((error) => {
+            console.warn("[Circuito] Falha ao publicar localização compartilhada", error);
+          });
+        }
+      } catch {
+        // Compartilhamento é opcional; o GPS local continua funcionando.
+      }
     };
 
     const onErr = (err: GeolocationPositionError) => {
