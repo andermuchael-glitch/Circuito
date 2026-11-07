@@ -1,8 +1,9 @@
 import { useEffect } from "react";
-import { buildSimPath, corridaAtiva, isDefaultBase, BASE_HOME, useDelivery } from "@/lib/delivery-store";
+import { buildSimPath, corridaAtiva, nextStop, isDefaultBase, BASE_HOME, useDelivery } from "@/lib/delivery-store";
 import { holdScreen, releaseScreen } from "@/lib/screen";
 import { toast } from "sonner";
-import { publishLivePoint } from "@/lib/live-sharing";
+import { publishLivePoint, publishPermanentLiveShare } from "@/lib/live-sharing";
+import { drivingRoute } from "@/lib/routing";
 
 declare global {
   interface Window {
@@ -58,6 +59,8 @@ export function LiveEngine() {
     }
 
     let gotFix = false;
+    let lastPermanentPublish = 0;
+    let lastPermanentTarget = "";
     useDelivery.getState().setLiveStatus("buscando");
 
     const onFix = (pos: GeolocationPosition) => {
@@ -99,6 +102,42 @@ export function LiveEngine() {
           void publishLivePoint(share.id, { lat: point.lat, lng: point.lng, accuracy, speed, time: trackedPoint.t }, [...currentRun.points, trackedPoint]).catch((error) => {
             console.warn("[Circuito] Falha ao publicar localização compartilhada", error);
           });
+        }
+
+        const permanentToken = localStorage.getItem("circuito-permanent-share-token");
+        if (permanentToken && currentRun?.status === "ativa" && currentRun.modo === "gps") {
+          const latestState = useDelivery.getState();
+          const stop = nextStop(currentRun, latestState.comandas);
+          const destination = currentRun.destino ?? (stop ? null : (latestState.base ?? BASE_HOME));
+          const target = currentRun.destino
+            ? { lat: currentRun.destino.lat, lng: currentRun.destino.lng, label: currentRun.destino.label, order: null as string | null, customer: null as string | null, status: "delivery" as const }
+            : stop
+              ? { lat: stop.lat, lng: stop.lng, label: stop.endereco, order: stop.numero, customer: stop.cliente, status: "delivery" as const }
+              : { lat: destination!.lat, lng: destination!.lng, label: "Volta à base", order: null, customer: null, status: "returning" as const };
+          const targetKey = `${target.lat.toFixed(5)},${target.lng.toFixed(5)},${target.order ?? target.status}`;
+          if (Date.now() - lastPermanentPublish >= 12000 || targetKey !== lastPermanentTarget) {
+            lastPermanentPublish = Date.now();
+            lastPermanentTarget = targetKey;
+            void (async () => {
+              const road = await drivingRoute([point, { lat: target.lat, lng: target.lng }]);
+              await publishPermanentLiveShare({
+                active: true,
+                status: target.status,
+                current_order: target.order,
+                customer: target.customer,
+                destination_label: target.label,
+                destination_lat: target.lat,
+                destination_lng: target.lng,
+                latest_lat: point.lat,
+                latest_lng: point.lng,
+                speed,
+                accuracy,
+                distance_m: road ? Math.round(road.km * 1000) : null,
+                eta_seconds: road?.durationSeconds ?? null,
+                updated_at: new Date(trackedPoint.t).toISOString(),
+              });
+            })().catch((error) => console.warn("[Circuito] Falha ao atualizar link permanente", error));
+          }
         }
       } catch {
         // Compartilhamento é opcional; o GPS local continua funcionando.
