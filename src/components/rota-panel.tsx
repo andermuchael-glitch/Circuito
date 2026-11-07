@@ -10,7 +10,7 @@ import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/cn";
 import { calculateTomTomRoute } from "@/lib/tomtom-routing";
 import { drivingRoute } from "@/lib/routing";
-import { createLiveShare, stopLiveShare } from "@/lib/live-sharing";
+import { createLiveShare, createPermanentLiveShare, stopLiveShare } from "@/lib/live-sharing";
 
 export function RotaPanel() {
   const comandas = useDelivery((state) => state.comandas);
@@ -39,6 +39,10 @@ export function RotaPanel() {
   const [routeFailed, setRouteFailed] = useState(false);
   const [shareLink, setShareLink] = useState("");
   const [shareBusy, setShareBusy] = useState(false);
+  const [permanentLink, setPermanentLink] = useState(() => {
+    try { const token = localStorage.getItem("circuito-permanent-share-token"); return token ? new URL(`acompanhar/${token}`, window.location.href).toString() : ""; } catch { return ""; }
+  });
+  const [permanentBusy, setPermanentBusy] = useState(false);
   const lastSpokenCue = useRef("");
 
   const abertas = comandas.filter(comPin).filter((item) => item.status === "aberta");
@@ -464,6 +468,30 @@ export function RotaPanel() {
       </section>
 
 
+
+      <section className="mt-4 rounded-2xl border border-signal/50 bg-raised p-3">
+        <p className="text-sm font-semibold">Link permanente do estabelecimento</p>
+        <p className="mt-1 text-xs text-muted">Compartilhe uma única vez. O mesmo link acompanha todas as corridas e muda automaticamente para a próxima entrega ou volta à base.</p>
+        {permanentLink ? (
+          <div className="mt-3 space-y-2">
+            <p className="break-all rounded-xl bg-black/20 p-2 text-xs text-signal">{permanentLink}</p>
+            <button type="button" onClick={() => void navigator.clipboard.writeText(permanentLink)} className="h-11 w-full rounded-full bg-signal text-sm font-bold text-signal-ink">Copiar link permanente</button>
+          </div>
+        ) : (
+          <button type="button" disabled={permanentBusy} onClick={async () => {
+            setPermanentBusy(true);
+            try {
+              const token = await createPermanentLiveShare();
+              localStorage.setItem("circuito-permanent-share-token", token);
+              setPermanentLink(new URL(`acompanhar/${token}`, window.location.href).toString());
+            } catch (error) {
+              window.alert(error instanceof Error ? error.message : "Não foi possível criar o link permanente.");
+            } finally { setPermanentBusy(false); }
+          }} className="mt-3 h-11 w-full rounded-full bg-signal text-sm font-bold text-signal-ink disabled:opacity-50">
+            {permanentBusy ? "Criando link…" : "Criar link permanente"}
+          </button>
+        )}
+      </section>
 
       {gpsError ? <p className="mt-3 rounded-2xl bg-raised px-3 py-2 text-sm text-danger">{gpsError}</p> : null}
       {run.modo === "gps" && gpsMeta.weak ? (
