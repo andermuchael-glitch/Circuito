@@ -128,3 +128,11 @@ export async function getPermanentLiveShare(token: string): Promise<{ payload: P
   );
   return rows?.[0] ?? null;
 }
+
+
+export async function getPublicTracking(token: string) {
+  const legacy = await getPublicLiveShare(token);
+  if (legacy) return { kind: "race" as const, data: legacy as Record<string, unknown> };
+  const permanent = await getPermanentLiveShare(token);
+  return permanent ? { kind: "permanent" as const, data: permanent.payload, updated_at: permanent.updated_at } : null;
+}
