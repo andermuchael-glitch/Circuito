@@ -10,7 +10,7 @@ import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/cn";
 import { calculateTomTomRoute } from "@/lib/tomtom-routing";
 import { drivingRoute } from "@/lib/routing";
-import { createLiveShare, createPermanentLiveShare, stopLiveShare } from "@/lib/live-sharing";
+import { createLiveShare, createPermanentLiveShare, publishPermanentLiveShare, stopLiveShare } from "@/lib/live-sharing";
 
 export function RotaPanel() {
   const comandas = useDelivery((state) => state.comandas);
@@ -661,6 +661,11 @@ export function RotaPanel() {
                   }
                   localStorage.removeItem("circuito-live-share");
                   setShareLink("");
+                }
+                if (localStorage.getItem("circuito-permanent-share-token")) {
+                  await publishPermanentLiveShare({ active: false, status: "idle", updated_at: new Date().toISOString() }).catch((error) => {
+                    console.warn("[Circuito] Não foi possível atualizar o link permanente", error);
+                  });
                 }
                 useDelivery.getState().encerrar();
               }}
