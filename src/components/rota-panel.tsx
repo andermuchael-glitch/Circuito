@@ -426,7 +426,13 @@ export function RotaPanel() {
         </div>
       </section>
 
-      <details className="mt-3 rounded-2xl border border-line bg-raised p-3">
+      <details className="mt-3 rounded-2xl border border-line bg-raised p-2">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-2 text-sm font-semibold">
+          <span className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-full bg-signal/15 text-signal">☰</span> Mais informações</span>
+          <span className="text-xs font-medium text-muted">Links · Comandas · Paradas</span>
+        </summary>
+        <div className="mt-2 space-y-2">
+      <details className="rounded-xl border border-line bg-surface p-3">
     <summary className="cursor-pointer list-none text-sm font-semibold">Compartilhar localização da corrida</summary>
     <p className="mt-1 text-xs text-muted">Gere um link para outra pessoa acompanhar sua posição enquanto o GPS estiver ativo.</p>
     {shareLink ? (
@@ -576,6 +582,8 @@ export function RotaPanel() {
           );
         })}
       </ol>
+      </details>
+        </div>
       </details>
 
       {restantes.length > 0 ? (
