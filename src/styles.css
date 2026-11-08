@@ -82,11 +82,13 @@
 
 @media (max-width: 767px) {
   .app-shell {
-    padding-top: max(env(safe-area-inset-top), 2.75rem);
+    /* Mantém a área segura do Android sem criar um vão grande acima do cabeçalho. */
+    padding-top: max(env(safe-area-inset-top), 0.75rem);
   }
 
   .dock {
-    padding-bottom: max(env(safe-area-inset-bottom), 3.5rem);
+    /* Aproxima as abas da borda inferior e preserva somente a folga necessária. */
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
   }
 
   html.native-insets .app-shell {
