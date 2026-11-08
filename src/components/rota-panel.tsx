@@ -65,9 +65,10 @@ export function RotaPanel() {
         .filter((id) => !run.feitas.includes(id))
         .map((id) => comandas.find((item) => item.id === id))
         .filter((item): item is Comanda & { lat: number; lng: number } => Boolean(item && comPin(item)));
-      if (!pending.length) return [];
       const last = run.points[run.points.length - 1];
       const start = gaze ?? last ?? origin;
+      // Sem entregas pendentes, a navegação continua até a base.
+      if (!pending.length) return base ? [start, base] : [];
       return [start, ...pending, base ?? origin];
     }
     if (!selected.length) return [];
@@ -221,7 +222,7 @@ export function RotaPanel() {
               {mapExpanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
             </button>
           </div>
-          <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[68vh] min-h-[520px]")}>
+          <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[76vh] min-h-[600px]")}>
             <MapView navigating={false} destinationLabel={searchDestination?.label ?? "Prévia da rota"} instruction={routeLoading ? "Calculando caminho pelas ruas…" : routeFailed ? "Falha ao calcular a rota. Confira a conexão." : searchDestination ? `Destino: ${searchDestination.label}` : "Confira sua posição e as paradas"} instructionMeters={null} audioEnabled={voiceEnabled} onToggleAudio={() => setVoiceEnabled((value) => !value)} expanded={mapExpanded} onToggleExpanded={() => setMapExpanded((value) => !value)} />
           </div>
         </section>
@@ -399,19 +400,13 @@ export function RotaPanel() {
 
   return (
     <div className="scroll h-full min-h-0 overflow-y-auto px-4 py-4">
-      <div className="flex items-end justify-between gap-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-medium tracking-wide text-muted">CORRIDA ABERTA</p>
-          <h1 className="font-display text-5xl leading-none tracking-wide">{kmLabel(run.km)}</h1>
+          <p className="text-xs font-medium tracking-wide text-muted">NAVEGAÇÃO ATIVA</p>
+          <p className="text-sm text-muted">{run.feitas.length} de {run.ordem.length} entregas concluídas · {duration(now - run.startedAt)}</p>
         </div>
-        <p className="font-mono text-sm text-muted">{duration(now - run.startedAt)}</p>
+        <p className="font-display text-2xl leading-none">{kmLabel(run.km)}</p>
       </div>
-
-      <dl className="mt-4 grid grid-cols-3 gap-2">
-        <Stat label="Feitas" value={String(run.feitas.length)} />
-        <Stat label="Restam" value={String(run.ordem.length - run.feitas.length)} />
-        <Stat label="km/h" value={speed} />
-      </dl>
 
       <section className={cn(
         "overflow-hidden border border-line bg-surface",
@@ -419,21 +414,20 @@ export function RotaPanel() {
       )}>
         <div className={cn("flex items-center justify-between gap-3 px-3 py-3", mapExpanded && "pt-[calc(env(safe-area-inset-top)+12px)]")}>
           <div className="min-w-0">
-            <p className="text-sm font-semibold">{destinationOnly ? "Navegação até o destino" : "Mapa da rota"}</p>
-            <p className="text-xs text-muted">OpenStreetMap · posição pelo GPS</p>
-            <span className={cn("mt-1 inline-flex rounded-full px-2 py-1 text-xs", liveStatus === "ativo" ? "bg-go/15 text-go" : "bg-raised text-muted")}>{liveStatus === "ativo" ? "GPS ativo" : "Aguardando GPS"}</span>
+            <p className="text-sm font-semibold">{destinationOnly ? "Navegação até o destino" : upcoming ? `Próxima parada · Comanda ${upcoming.numero}` : "Retorno à base"}</p>
+            <p className="text-xs text-muted">{destinationOnly ? run.destino?.label : upcoming ? upcoming.endereco : (base?.endereco ?? "Base")} · GPS {liveStatus === "ativo" ? "ativo" : "aguardando"}</p>
           </div>
           <button type="button" onClick={() => setMapExpanded((value) => !value)} aria-label={mapExpanded ? "Recolher mapa" : "Expandir mapa"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-line bg-raised">
             {mapExpanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
           </button>
         </div>
         <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[68vh] min-h-[520px]")}>
-          <MapView />
+          <MapView navigating destinationLabel={upcoming ? `Comanda ${upcoming.numero} · ${upcoming.endereco}` : destinationOnly ? run.destino?.label : "Voltando para a base"} instruction={routeLoading ? "Calculando a próxima manobra…" : routeCue?.text ?? (upcoming ? `Siga até ${upcoming.endereco}` : "Siga em frente até a base")} instructionMeters={routeCue?.meters ?? null} audioEnabled={voiceEnabled} onToggleAudio={() => setVoiceEnabled((value) => !value)} expanded={mapExpanded} onToggleExpanded={() => setMapExpanded((value) => !value)} />
         </div>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-line bg-raised p-3">
-    <p className="text-sm font-semibold">Compartilhar localização da corrida</p>
+      <details className="mt-3 rounded-2xl border border-line bg-raised p-3">
+    <summary className="cursor-pointer list-none text-sm font-semibold">Compartilhar localização da corrida</summary>
     <p className="mt-1 text-xs text-muted">Gere um link para outra pessoa acompanhar sua posição enquanto o GPS estiver ativo.</p>
     {shareLink ? (
       <div className="mt-3 space-y-2">
@@ -465,12 +459,10 @@ export function RotaPanel() {
         {shareBusy ? "Gerando link…" : "Gerar link de acompanhamento"}
       </button>
     )}
-      </section>
+      </details>
 
-
-
-      <section className="mt-4 rounded-2xl border border-signal/50 bg-raised p-3">
-        <p className="text-sm font-semibold">Link permanente do estabelecimento</p>
+      <details className="mt-2 rounded-2xl border border-signal/50 bg-raised p-3">
+        <summary className="cursor-pointer list-none text-sm font-semibold">Link permanente do estabelecimento</summary>
         <p className="mt-1 text-xs text-muted">Compartilhe uma única vez. O mesmo link acompanha todas as corridas e muda automaticamente para a próxima entrega ou volta à base.</p>
         {permanentLink ? (
           <div className="mt-3 space-y-2">
@@ -491,7 +483,7 @@ export function RotaPanel() {
             {permanentBusy ? "Criando link…" : "Criar link permanente"}
           </button>
         )}
-      </section>
+      </details>
 
       {gpsError ? <p className="mt-3 rounded-2xl bg-raised px-3 py-2 text-sm text-danger">{gpsError}</p> : null}
       {run.modo === "gps" && gpsMeta.weak ? (
@@ -515,7 +507,9 @@ export function RotaPanel() {
         </div>
       ) : null}
 
-      <ol className="mt-4 space-y-2">
+      <details className="mt-3 rounded-2xl border border-line bg-surface p-3">
+      <summary className="cursor-pointer list-none text-sm font-semibold">Ver comandas e paradas ({run.feitas.length}/{run.ordem.length} concluídas)</summary>
+      <ol className="mt-3 space-y-2">
         {run.ordem.map((id, index) => {
           const item = comandas.find((comanda) => comanda.id === id);
           if (!item) return null;
@@ -582,6 +576,7 @@ export function RotaPanel() {
           );
         })}
       </ol>
+      </details>
 
       {restantes.length > 0 ? (
         <a
