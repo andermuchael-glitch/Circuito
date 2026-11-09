@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { ChevronDown, LogOut, UserRound } from "lucide-react";
 import { App } from "@/components/app";
 
 const URL = "https://buvvxwzhqfkberreqbrk.supabase.co";
@@ -102,7 +103,20 @@ export function SupabaseAuthGate() {
   }
 
   if (!ready) return <div className="grid min-h-dvh place-items-center bg-[#07110c] text-white">Carregando conta…</div>;
-  if (session && mode !== "reset") return <div className="relative h-dvh"><App /><div className="absolute right-3 top-16 z-40 flex max-w-[75vw] items-center gap-2 rounded-full border border-white/15 bg-[#101c16]/95 px-3 py-2 text-xs text-white shadow-lg"><span className="max-w-36 truncate">{session.user?.email || "Conta conectada"}</span><button type="button" disabled={busy} onClick={() => void logout()} className="rounded-full bg-white/10 px-3 py-1.5 font-semibold">Sair</button></div></div>;
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  if (session && mode !== "reset") return <div className="relative h-dvh"><App /><div className="absolute right-3 top-3 z-50">
+    <button type="button" aria-label="Abrir menu da conta" aria-expanded={accountOpen} onClick={() => setAccountOpen(v => !v)} className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-[#101c16]/95 text-white shadow-lg">
+      <UserRound className="h-5 w-5" />
+    </button>
+    {accountOpen && <div className="absolute right-0 top-12 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/15 bg-[#101c16] p-3 text-white shadow-2xl">
+      <p className="px-2 py-2 text-xs text-white/55">Conta conectada</p>
+      <p className="break-all px-2 pb-3 text-sm font-medium">{session.user?.email || "Conta conectada"}</p>
+      <button type="button" disabled={busy} onClick={() => void logout()} className="flex w-full items-center gap-2 rounded-xl bg-white/10 px-3 py-2.5 text-sm font-semibold disabled:opacity-50">
+        <LogOut className="h-4 w-4" /> {busy ? "Saindo…" : "Sair da conta"}
+      </button>
+    </div>}
+  </div></div>;
 
   const title = mode === "signup" ? "Criar conta" : mode === "recover" ? "Recuperar senha" : mode === "reset" ? "Nova senha" : "Entrar no Circuito";
   return <main className="grid min-h-dvh place-items-center bg-[#07110c] px-4 py-8 text-white"><section className="w-full max-w-md rounded-3xl border border-white/10 bg-[#101c16] p-6 shadow-2xl sm:p-8">
