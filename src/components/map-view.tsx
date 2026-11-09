@@ -241,7 +241,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       } else {
         riderRef.current.setLngLat([current.lng, current.lat]);
       }
-      riderRef.current.setRotation(headingRef.current - map.getBearing());
+      riderRef.current.setRotation(0);
     } else {
       riderRef.current?.remove();
       riderRef.current = null;
@@ -257,7 +257,6 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       const cameraPrevious = lastCameraPosition.current;
       const cameraMoved = cameraPrevious ? distanceMeters(cameraPrevious, current) : 999;
       if (!cameraPrevious || cameraMoved >= 4) {
-        map.setBearing(0);
         map.setPitch(0);
         lastCameraPosition.current = current;
         map.easeTo({
@@ -265,12 +264,13 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           zoom: Math.min(Math.max(map.getZoom(), 17.0), 17.6),
           pitch: 0,
           offset: [0, 110],
-          bearing: 0,
+          // Estilo navegador GPS: mantém a direção do deslocamento para cima.
+          bearing: headingRef.current,
           duration: 1000,
           essential: true,
         });
       }
-      riderRef.current?.setRotation(headingRef.current);
+      riderRef.current?.setRotation(0);
     }
   }, [ready, tick, tab]);
 
