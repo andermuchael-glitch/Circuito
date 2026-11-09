@@ -246,6 +246,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
 
     if (state.fitToken !== fitted.current) {
       fitted.current = state.fitToken;
+      lastCameraPosition.current = current;
       if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 18.5, pitch: 62, offset: [0, 105], duration: 650 });
     } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
       // Só reposiciona a câmera após deslocamento real; evita animações reiniciadas
