@@ -256,10 +256,10 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       const previous = previousPosition.current;
       if (previous) {
         const moved = distanceMeters(previous, current);
-        // Pequenas oscilações do GPS (até ~4 m) não devem girar o mapa.
-        if (moved >= 4) {
+        // Atualiza a direção apenas após deslocamento consistente, evitando ruído do GPS parado.
+        if (moved >= 8) {
           const measuredHeading = bearing(previous, current);
-          headingRef.current = smoothAngle(headingRef.current, measuredHeading, moved >= 12 ? 0.32 : 0.16);
+          headingRef.current = smoothAngle(headingRef.current, measuredHeading, moved >= 20 ? 0.24 : 0.12);
         }
       }
       previousPosition.current = current;
@@ -269,7 +269,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       } else {
         riderRef.current.setLngLat([current.lng, current.lat]);
       }
-      riderRef.current.setRotation(0);
+      // O mapa fica sempre com o norte para cima; somente o ícone da moto indica a direção.
+      riderRef.current.setRotation(headingRef.current);
     } else {
       riderRef.current?.remove();
       riderRef.current = null;
@@ -280,25 +281,22 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       lastCameraPosition.current = current;
       if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 17.2, pitch: 0, bearing: 0, offset: [0, 90], duration: 650 });
     } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
-      // Só reposiciona a câmera após deslocamento real; evita animações reiniciadas
-      // por cada pequena variação do GPS.
+      // A câmera só acompanha após 12 m de deslocamento real. Isso evita que
+      // oscilações de precisão do GPS reiniciem a animação continuamente.
       const cameraPrevious = lastCameraPosition.current;
       const cameraMoved = cameraPrevious ? distanceMeters(cameraPrevious, current) : 999;
-      if (!cameraPrevious || cameraMoved >= 4) {
-        map.setPitch(0);
+      if (!cameraPrevious || cameraMoved >= 12) {
         lastCameraPosition.current = current;
         map.easeTo({
           center: [current.lng, current.lat],
-          zoom: Math.min(Math.max(map.getZoom(), 17.0), 17.6),
+          zoom: Math.min(Math.max(map.getZoom(), 16.8), 17.3),
           pitch: 0,
-          offset: [0, 110],
-          // Estilo navegador GPS: mantém a direção do deslocamento para cima.
-          bearing: headingRef.current,
-          duration: 1000,
+          bearing: 0,
+          offset: [0, 95],
+          duration: 650,
           essential: true,
         });
       }
-      riderRef.current?.setRotation(0);
     }
   }, [ready, tick, tab]);
 
