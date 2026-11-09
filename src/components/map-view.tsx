@@ -130,6 +130,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       ],
     };
 
+    const startMap = async () => {
+      try {
         map = new maplibregl.Map({
           container: host,
           style,
@@ -173,7 +175,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         map.on("error", (event) => {
           console.warn("[Circuito OpenStreetMap mapa]", event.error);
           if (!disposed && map && !map.isStyleLoaded()) {
-            setMapError(`Falha ao carregar o mapa Mapbox: ${event.error?.message ?? "erro de estilo ou conexão"}. Verifique se o token está ativo e possui o escopo styles:read.`);
+            setMapError(`Falha ao carregar o mapa OpenStreetMap: ${event.error?.message ?? "erro de estilo ou conexão"}. Verifique sua conexão com a internet e tente novamente.`);
           }
         });
 
@@ -182,7 +184,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       } catch (error) {
         console.error("[Circuito] Falha ao iniciar mapa", error);
         if (!disposed) {
-          setMapError(`Falha ao iniciar o mapa Mapbox: ${error instanceof Error ? error.message : String(error)}. Verifique o token público e a conexão.`);
+          setMapError(`Falha ao iniciar o mapa: ${error instanceof Error ? error.message : String(error)}. Verifique a conexão com a internet e tente novamente.`);
         }
       }
     };
