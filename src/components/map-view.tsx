@@ -104,82 +104,101 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       setMapError("O token público do Mapbox não foi configurado. Verifique VITE_MAPBOX_ACCESS_TOKEN.");
       return;
     }
+
     let disposed = false;
+    let map: MapboxMap | null = null;
+    let resize: ResizeObserver | null = null;
     setReady(false);
     setMapError("");
+
     const state = useDelivery.getState();
     const initial = state.gaze ?? state.base ?? { lat: -26.9955, lng: -48.6432 };
-    try {
-      const map = new mapboxgl.Map({
-        container: host,
-        style: darkStyle
-          ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_ACCESS_TOKEN}`
-          : `https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=${MAPBOX_ACCESS_TOKEN}`,
-        // O JSON de estilos Mapbox inclui "name" no nível raiz; remova-o para compatibilidade com o validador MapLibre.
-        transformStyle: (_previousStyle, nextStyle) => {
-          const compatibleStyle = { ...nextStyle } as Record<string, unknown>;
-          delete compatibleStyle.name;
-          return compatibleStyle as typeof nextStyle;
-        },
-        center: [initial.lng, initial.lat],
-        zoom: 17.2,
-        pitch: 0,
-        bearing: 0,
-        maxZoom: 20,
-        minZoom: 3,
-        attributionControl: true,
-        logoPosition: "bottom-left",
-        cooperativeGestures: false,
-      });
-      mapRef.current = map;
-      map.once("load", () => {
+    const styleUrl = darkStyle
+      ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_ACCESS_TOKEN}`
+      : `https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=${MAPBOX_ACCESS_TOKEN}`;
+
+    const startMap = async () => {
+      try {
+        // Baixa o estilo como JSON e remove metadados proprietários do Mapbox
+        // que não fazem parte do Style Specification aceito pelo MapLibre.
+        const response = await fetch(styleUrl);
+        if (!response.ok) throw new Error(`Mapbox respondeu HTTP ${response.status}`);
+        const style = await response.json() as Record<string, unknown>;
+        delete style.name;
         if (disposed) return;
-        // Mantém o mapa sempre alinhado ao norte; somente o marcador da moto gira.
-        map.setBearing(0);
-        map.setPitch(0);
-        map.addSource("circuito-route", {
-          type: "geojson",
-          data: featureLine([]),
+
+        map = new mapboxgl.Map({
+          container: host,
+          style: style as mapboxgl.StyleSpecification,
+          center: [initial.lng, initial.lat],
+          zoom: 17.2,
+          pitch: 0,
+          bearing: 0,
+          maxZoom: 20,
+          minZoom: 3,
+          attributionControl: true,
+          logoPosition: "bottom-left",
+          cooperativeGestures: false,
         });
-        map.addLayer({
-          id: "circuito-route-outline",
-          type: "line",
-          source: "circuito-route",
-          layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": "#ffffff", "line-width": 11, "line-opacity": 0.9 },
+        mapRef.current = map;
+
+        map.once("load", () => {
+          if (disposed || !map) return;
+          map.setBearing(0);
+          map.setPitch(0);
+          map.addSource("circuito-route", {
+            type: "geojson",
+            data: featureLine([]),
+          });
+          map.addLayer({
+            id: "circuito-route-outline",
+            type: "line",
+            source: "circuito-route",
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": "#ffffff", "line-width": 11, "line-opacity": 0.9 },
+          });
+          map.addLayer({
+            id: "circuito-route-line",
+            type: "line",
+            source: "circuito-route",
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": "#1685ff", "line-width": 7, "line-opacity": 1 },
+          });
+          setReady(true);
         });
-        map.addLayer({
-          id: "circuito-route-line",
-          type: "line",
-          source: "circuito-route",
-          layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": "#1685ff", "line-width": 7, "line-opacity": 1 },
+
+        map.on("error", (event) => {
+          console.warn("[Circuito Mapbox mapa]", event.error);
+          if (!disposed && map && !map.isStyleLoaded()) {
+            setMapError(`Falha ao carregar o mapa Mapbox: ${event.error?.message ?? "erro de estilo ou conexão"}. Verifique se o token está ativo e possui o escopo styles:read.`);
+          }
         });
-        setReady(true);
-      });
-      map.on("error", (event) => {
-        console.warn("[Circuito Mapbox mapa]", event.error);
-        if (!disposed && !map.isStyleLoaded()) setMapError(`Falha ao carregar o mapa Mapbox: ${event.error?.message ?? "erro de estilo ou conexão"}. Verifique se o token está ativo e possui o escopo styles:read.`);
-      });
-      const resize = new ResizeObserver(() => map.resize());
-      resize.observe(host);
-      return () => {
-        disposed = true;
-        resize.disconnect();
-        markersRef.current.forEach((marker) => marker.remove());
-        riderRef.current?.remove();
-        searchMarkerRef.current?.remove();
-        map.remove();
-        mapRef.current = null;
-        markersRef.current = [];
-        riderRef.current = null;
-        searchMarkerRef.current = null;
-        setReady(false);
-      };
-    } catch (error) {
-      console.error("[Circuito] Falha ao iniciar Mapbox", error);
-      setMapError(`Falha ao iniciar o mapa Mapbox: ${error instanceof Error ? error.message : String(error)}. Verifique a compatibilidade WebGL e o token público.`);
-    }
+
+        resize = new ResizeObserver(() => map?.resize());
+        resize.observe(host);
+      } catch (error) {
+        console.error("[Circuito] Falha ao iniciar Mapbox", error);
+        if (!disposed) {
+          setMapError(`Falha ao iniciar o mapa Mapbox: ${error instanceof Error ? error.message : String(error)}. Verifique o token público e a conexão.`);
+        }
+      }
+    };
+
+    void startMap();
+
+    return () => {
+      disposed = true;
+      resize?.disconnect();
+      markersRef.current.forEach((marker) => marker.remove());
+      riderRef.current?.remove();
+      searchMarkerRef.current?.remove();
+      map?.remove();
+      mapRef.current = null;
+      markersRef.current = [];
+      riderRef.current = null;
+      searchMarkerRef.current = null;
+      setReady(false);
+    };
   }, [mapRetry, darkStyle]);
 
   useEffect(() => {
