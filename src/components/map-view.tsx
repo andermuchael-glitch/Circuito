@@ -105,7 +105,6 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     const state = useDelivery.getState();
     const initial = state.gaze ?? state.base ?? { lat: -26.9955, lng: -48.6432 };
     try {
-      mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
       const map = new mapboxgl.Map({
         container: host,
         style: darkStyle
