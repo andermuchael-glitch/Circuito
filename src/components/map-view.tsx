@@ -129,6 +129,9 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       mapRef.current = map;
       map.once("load", () => {
         if (disposed) return;
+        // Mantém o mapa sempre alinhado ao norte; somente o marcador da moto gira.
+        map.setBearing(0);
+        map.setPitch(0);
         map.addSource("circuito-route", {
           type: "geojson",
           data: featureLine([]),
@@ -253,8 +256,9 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       // por cada pequena variação do GPS.
       const cameraPrevious = lastCameraPosition.current;
       const cameraMoved = cameraPrevious ? distanceMeters(cameraPrevious, current) : 999;
-      const bearingDelta = Math.abs(((headingRef.current - map.getBearing() + 540) % 360) - 180);
-      if (!cameraPrevious || cameraMoved >= 4 || bearingDelta >= 7) {
+      if (!cameraPrevious || cameraMoved >= 4) {
+        map.setBearing(0);
+        map.setPitch(0);
         lastCameraPosition.current = current;
         map.easeTo({
           center: [current.lng, current.lat],
@@ -266,7 +270,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           essential: true,
         });
       }
-      riderRef.current?.setRotation(headingRef.current - map.getBearing());
+      riderRef.current?.setRotation(headingRef.current);
     }
   }, [ready, tick, tab]);
 
