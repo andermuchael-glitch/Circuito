@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Home, LocateFixed, Maximize2, Minimize2, Crosshair, Search, X, Layers2, Navigation, Volume2, VolumeX, ArrowUpRight, CornerUpLeft, CornerUpRight } from "lucide-react";
-import * as maplibregl from "maplibre-gl";
-import type { Map as MapLibreMap, Marker, GeoJSONSource } from "maplibre-gl";
-import { TomTomMap } from "@tomtom-org/maps-sdk/map";
-import "maplibre-gl/dist/maplibre-gl.css";
+import mapboxgl from "mapbox-gl";
+import type { Map as MapboxMap, Marker, GeoJSONSource } from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import { IconButton } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, useDelivery } from "@/lib/delivery-store";
 import { bearing, type LatLng } from "@/lib/geo";
 import { startOfToday } from "@/lib/format";
 import { searchNominatim } from "@/lib/places";
 import { cn } from "@/lib/cn";
+import { MAPBOX_ACCESS_TOKEN } from "@/lib/mapbox-config";
 
 type SearchHit = { label: string; lat: number; lng: number };
 type MapViewProps = { navigating?: boolean; destinationLabel?: string; instruction?: string; instructionMeters?: number | null; audioEnabled?: boolean; onToggleAudio?: () => void; expanded?: boolean; onToggleExpanded?: () => void };
@@ -41,8 +41,7 @@ function featureLine(points: LatLng[]) {
 
 export function MapView({ navigating = false, destinationLabel, instruction, instructionMeters, audioEnabled = true, onToggleAudio, expanded = false, onToggleExpanded }: MapViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
-  const tomtomRef = useRef<TomTomMap | null>(null);
+  const mapRef = useRef<MapboxMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
   const riderRef = useRef<Marker | null>(null);
   const searchMarkerRef = useRef<Marker | null>(null);
@@ -95,10 +94,9 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
 
   useEffect(() => {
     const host = hostRef.current;
-    const apiKey = import.meta.env.VITE_TOMTOM_API_KEY as string | undefined;
     if (!host) return;
-    if (!apiKey) {
-      setMapError("A chave do TomTom não foi encontrada na publicação. Configure VITE_TOMTOM_API_KEY no GitHub.");
+    if (!MAPBOX_ACCESS_TOKEN) {
+      setMapError("O token público do Mapbox não foi configurado. Verifique VITE_MAPBOX_ACCESS_TOKEN.");
       return;
     }
     let disposed = false;
@@ -107,25 +105,22 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     const state = useDelivery.getState();
     const initial = state.gaze ?? state.base ?? { lat: -26.9955, lng: -48.6432 };
     try {
-      const tomtom = new TomTomMap({
-        apiKey,
-        style: darkStyle ? "streetDarkDriving" : "streetLightDriving",
-        language: "pt-BR",
-        mapLibre: {
-          container: host,
-          center: [initial.lng, initial.lat],
-          zoom: 17.2,
-          pitch: 0,
-          bearing: 0,
-          maxZoom: 20,
-          minZoom: 3,
-          attributionControl: true,
-          logoPosition: "bottom-left",
-          cooperativeGestures: false,
-        },
+      mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
+      const map = new mapboxgl.Map({
+        container: host,
+        style: darkStyle
+          ? "mapbox://styles/mapbox/dark-v11"
+          : "mapbox://styles/mapbox/streets-v12",
+        center: [initial.lng, initial.lat],
+        zoom: 17.2,
+        pitch: 0,
+        bearing: 0,
+        maxZoom: 20,
+        minZoom: 3,
+        attributionControl: true,
+        logoPosition: "bottom-left",
+        cooperativeGestures: false,
       });
-      tomtomRef.current = tomtom;
-      const map = tomtom.mapLibreMap;
       mapRef.current = map;
       map.once("load", () => {
         if (disposed) return;
@@ -153,8 +148,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         setReady(true);
       });
       map.on("error", (event) => {
-        console.warn("[Circuito TomTom mapa]", event.error);
-        if (!disposed && !map.isStyleLoaded()) setMapError(`Falha ao carregar o mapa TomTom: ${event.error?.message ?? "erro de estilo ou conexão"}. Verifique a chave e as permissões do SDK.`);
+        console.warn("[Circuito Mapbox mapa]", event.error);
+        if (!disposed && !map.isStyleLoaded()) setMapError(`Falha ao carregar o mapa Mapbox: ${event.error?.message ?? "erro de estilo ou conexão"}. Verifique se o token está ativo e possui o escopo styles:read.`);
       });
       const resize = new ResizeObserver(() => map.resize());
       resize.observe(host);
@@ -166,15 +161,14 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         searchMarkerRef.current?.remove();
         map.remove();
         mapRef.current = null;
-        tomtomRef.current = null;
         markersRef.current = [];
         riderRef.current = null;
         searchMarkerRef.current = null;
         setReady(false);
       };
     } catch (error) {
-      console.error("[Circuito] Falha ao iniciar TomTom", error);
-      setMapError(`Falha ao iniciar o mapa: ${error instanceof Error ? error.message : String(error)}. Verifique a compatibilidade WebGL e a chave TomTom.`);
+      console.error("[Circuito] Falha ao iniciar Mapbox", error);
+      setMapError(`Falha ao iniciar o mapa Mapbox: ${error instanceof Error ? error.message : String(error)}. Verifique a compatibilidade WebGL e o token público.`);
     }
   }, [mapRetry, darkStyle]);
 
@@ -189,7 +183,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     markersRef.current = [];
 
     if (state.base) {
-      markersRef.current.push(new maplibregl.Marker({ element: markerElement("BASE", "base"), anchor: "center" })
+      markersRef.current.push(new mapboxgl.Marker({ element: markerElement("BASE", "base"), anchor: "center" })
         .setLngLat([state.base.lng, state.base.lat]).addTo(map));
     }
 
@@ -364,7 +358,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
               />
               <button type="button" onClick={() => { setSearchOpen(false); setQuery(""); setHits([]); }} className="grid h-9 w-9 place-items-center rounded-full text-muted" aria-label="Fechar pesquisa"><X className="h-5 w-5" /></button>
             </div>
-            {searching ? <p className="px-4 pb-3 text-xs text-muted">Buscando no TomTom…</p> : null}
+            {searching ? <p className="px-4 pb-3 text-xs text-muted">Buscando endereço…</p> : null}
             {searchMessage ? <p className="px-4 pb-3 text-xs text-muted">{searchMessage}</p> : null}
             {hits.length ? <div className="max-h-56 overflow-y-auto border-t border-white/10">
               {hits.map((hit, index) => (
@@ -385,7 +379,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       </div> : null}
       {mapError ? (
         <div role="alert" className="absolute bottom-3 left-3 right-3 z-30 rounded-2xl border border-danger bg-bg px-4 py-4 text-sm leading-relaxed text-paper shadow-xl">
-          <strong className="mb-2 block text-base text-danger">Mapa TomTom indisponível</strong>
+          <strong className="mb-2 block text-base text-danger">Mapa Mapbox indisponível</strong>
           <p className="break-words">{mapError}</p>
           <button type="button" className="mt-3 rounded-xl border border-line px-4 py-2 font-semibold" onClick={() => { setMapError(""); setMapRetry((value) => value + 1); }}>Tentar novamente</button>
         </div>
@@ -397,7 +391,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         {!navigating ? <IconButton label="Enquadrar rota" onClick={() => {
           const points = useDelivery.getState().routeLine;
           if (points.length > 1 && mapRef.current) {
-            const bounds = new maplibregl.LngLatBounds();
+            const bounds = new mapboxgl.LngLatBounds();
             points.forEach((point) => bounds.extend([point.lng, point.lat]));
             mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 17, duration: 700 });
           } else useDelivery.getState().requestFit();
