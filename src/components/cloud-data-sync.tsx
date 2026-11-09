@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDelivery } from "@/lib/delivery-store";
 
 const URL = "https://buvvxwzhqfkberreqbrk.supabase.co";
@@ -45,8 +45,9 @@ function mergePayload(local: CloudPayload, remote: CloudPayload): CloudPayload {
 }
 
 export function CloudDataSync() {
-  const [status, setStatus] = useState("Sincronizando dados…");
+  const [status, setStatus] = useState("");
   const [failed, setFailed] = useState(false);
+  const hideTimer = useRef<number | undefined>(undefined);
   useEffect(() => {
     let alive = true;
     let ready = false;
@@ -67,9 +68,18 @@ export function CloudDataSync() {
           headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
           body: JSON.stringify({ user_id: s.user.id, payload, updated_at: new Date().toISOString() }),
         });
-        if (alive) { setStatus("Dados sincronizados"); setFailed(false); }
+        if (alive) {
+          setStatus("Dados sincronizados");
+          setFailed(false);
+          if (hideTimer.current) window.clearTimeout(hideTimer.current);
+          hideTimer.current = window.setTimeout(() => { if (alive) setStatus(""); }, 2600);
+        }
       } catch (e) {
-        if (alive) { setStatus(e instanceof Error ? e.message : "Falha ao sincronizar"); setFailed(true); }
+        if (alive) {
+          if (hideTimer.current) window.clearTimeout(hideTimer.current);
+          setStatus(e instanceof Error ? e.message : "Falha ao sincronizar");
+          setFailed(true);
+        }
       } finally { busy = false; }
     };
     const initialize = async () => {
@@ -103,7 +113,14 @@ export function CloudDataSync() {
     });
     const onOnline = () => { if (ready) void saveCloud(); };
     window.addEventListener("online", onOnline);
-    return () => { alive = false; unsubscribe(); window.removeEventListener("online", onOnline); if (timer) window.clearTimeout(timer); };
+    return () => {
+      alive = false; unsubscribe(); window.removeEventListener("online", onOnline);
+      if (timer) window.clearTimeout(timer);
+      if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    };
   }, []);
-  return <div className="pointer-events-none absolute bottom-20 right-3 z-30"><span className={`rounded-full border px-2.5 py-1 text-[10px] shadow-lg ${failed ? "border-amber-400/40 bg-amber-950/90 text-amber-200" : "border-white/10 bg-black/70 text-white/70"}`}>{status}</span></div>;
+  if (!status) return null;
+  return <div role={failed ? "alert" : "status"} className="pointer-events-none absolute bottom-20 right-3 z-30">
+    <span className={`rounded-full border px-2.5 py-1 text-[10px] shadow-lg ${failed ? "border-amber-400/40 bg-amber-950/90 text-amber-200" : "border-emerald-400/30 bg-emerald-950/90 text-emerald-200"}`}>{status}</span>
+  </div>;
 }
