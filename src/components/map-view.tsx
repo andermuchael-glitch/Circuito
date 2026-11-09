@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Home, LocateFixed, Maximize2, Minimize2, Crosshair, Search, X, Layers2, Navigation, Volume2, VolumeX, ArrowUpRight, CornerUpLeft, CornerUpRight } from "lucide-react";
 import * as mapboxgl from "maplibre-gl";
+import { setWorkerUrl } from "maplibre-gl";
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import type { Map as MapboxMap, Marker, GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+
+// MapLibre GL JS 6 precisa do worker explicitamente empacotado pelo Vite.
+setWorkerUrl(maplibreWorkerUrl);
 import { IconButton } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, useDelivery } from "@/lib/delivery-store";
 import { bearing, type LatLng } from "@/lib/geo";
