@@ -126,6 +126,35 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         const style = await response.json() as Record<string, unknown>;
         if (disposed) return;
 
+        // Converter recursos proprietários mapbox:// para endpoints HTTPS
+        // compatíveis com MapLibre, autenticados pelo token público.
+        const styleId = darkStyle ? "dark-v11" : "streets-v12";
+        const tokenParam = `access_token=${encodeURIComponent(MAPBOX_ACCESS_TOKEN)}`;
+        if (typeof style.sprite === "string" && style.sprite.startsWith("mapbox://")) {
+          style.sprite = `https://api.mapbox.com/styles/v1/mapbox/${styleId}/sprite?${tokenParam}`;
+        }
+        if (typeof style.glyphs === "string" && style.glyphs.startsWith("mapbox://")) {
+          style.glyphs = `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?${tokenParam}`;
+        }
+        if (style.sources && typeof style.sources === "object") {
+          for (const source of Object.values(style.sources as Record<string, unknown>)) {
+            if (source && typeof source === "object") {
+              const sourceData = source as Record<string, unknown>;
+              if (typeof sourceData.url === "string" && sourceData.url.startsWith("mapbox://")) {
+                const sourceId = sourceData.url.slice("mapbox://".length);
+                sourceData.url = `https://api.mapbox.com/v4/${sourceId}.json?${tokenParam}`;
+              }
+              if (Array.isArray(sourceData.tiles)) {
+                sourceData.tiles = sourceData.tiles.map((tile) =>
+                  typeof tile === "string" && tile.startsWith("mapbox://")
+                    ? tile.replace("mapbox://", "https://api.mapbox.com/v4/") + (tile.includes("?") ? "&" : "?") + tokenParam
+                    : tile
+                );
+              }
+            }
+          }
+        }
+
         map = new mapboxgl.Map({
           container: host,
           style: style as mapboxgl.StyleSpecification,
