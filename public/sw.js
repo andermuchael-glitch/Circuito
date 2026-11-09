@@ -1,4 +1,4 @@
-const CACHE = "circuito-v6";
+const CACHE = "circuito-v7";
 const SHELL = "/Circuito/";
 
 self.addEventListener("install", (event) => {
