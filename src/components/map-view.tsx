@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Home, LocateFixed, Maximize2, Minimize2, Crosshair, Search, X, Layers2, Navigation, Volume2, VolumeX, ArrowUpRight, CornerUpLeft, CornerUpRight } from "lucide-react";
-import * as mapboxgl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import { setWorkerUrl } from "maplibre-gl";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import type { Map as MapboxMap, Marker, GeoJSONSource } from "maplibre-gl";
+import type { Map as MapLibreMap, Marker, GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 // MapLibre GL JS 6 precisa do worker explicitamente empacotado pelo Vite.
@@ -14,7 +14,6 @@ import { bearing, type LatLng } from "@/lib/geo";
 import { startOfToday } from "@/lib/format";
 import { searchNominatim } from "@/lib/places";
 import { cn } from "@/lib/cn";
-import { MAPBOX_ACCESS_TOKEN } from "@/lib/mapbox-config";
 
 type SearchHit = { label: string; lat: number; lng: number };
 type MapViewProps = { navigating?: boolean; destinationLabel?: string; instruction?: string; instructionMeters?: number | null; audioEnabled?: boolean; onToggleAudio?: () => void; expanded?: boolean; onToggleExpanded?: () => void };
@@ -46,7 +45,7 @@ function featureLine(points: LatLng[]) {
 
 export function MapView({ navigating = false, destinationLabel, instruction, instructionMeters, audioEnabled = true, onToggleAudio, expanded = false, onToggleExpanded }: MapViewProps) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapboxMap | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
   const riderRef = useRef<Marker | null>(null);
   const searchMarkerRef = useRef<Marker | null>(null);
@@ -100,64 +99,40 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
-    if (!MAPBOX_ACCESS_TOKEN) {
-      setMapError("O token público do Mapbox não foi configurado. Verifique VITE_MAPBOX_ACCESS_TOKEN.");
-      return;
-    }
 
     let disposed = false;
-    let map: MapboxMap | null = null;
+    let map: MapLibreMap | null = null;
     let resize: ResizeObserver | null = null;
     setReady(false);
     setMapError("");
 
     const state = useDelivery.getState();
     const initial = state.gaze ?? state.base ?? { lat: -26.9955, lng: -48.6432 };
-    const styleUrl = darkStyle
-      ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_ACCESS_TOKEN}`
-      : `https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=${MAPBOX_ACCESS_TOKEN}`;
+    const style = {
+      version: 8,
+      sources: {
+        "openstreetmap": {
+          type: "raster",
+          tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+          tileSize: 256,
+          attribution: "© OpenStreetMap contributors",
+          maxzoom: 19,
+        },
+      },
+      layers: [
+        {
+          id: "openstreetmap-base",
+          type: "raster",
+          source: "openstreetmap",
+          minzoom: 0,
+          maxzoom: 22,
+        },
+      ],
+    };
 
-    const startMap = async () => {
-      try {
-        // Baixa o estilo como JSON e remove metadados proprietários do Mapbox
-        // que não fazem parte do Style Specification aceito pelo MapLibre.
-        const response = await fetch(styleUrl);
-        if (!response.ok) throw new Error(`Mapbox respondeu HTTP ${response.status}`);
-        const style = await response.json() as Record<string, unknown>;
-        if (disposed) return;
-
-        // Converter recursos proprietários mapbox:// para endpoints HTTPS
-        // compatíveis com MapLibre, autenticados pelo token público.
-        const styleId = darkStyle ? "dark-v11" : "streets-v12";
-        const tokenParam = `access_token=${encodeURIComponent(MAPBOX_ACCESS_TOKEN)}`;
-        if (typeof style.sprite === "string" && style.sprite.startsWith("mapbox://")) {
-          style.sprite = `https://api.mapbox.com/styles/v1/mapbox/${styleId}/sprite?${tokenParam}`;
-        }
-        if (typeof style.glyphs === "string" && style.glyphs.startsWith("mapbox://")) {
-          style.glyphs = `https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?${tokenParam}`;
-        }
-        if (style.sources && typeof style.sources === "object") {
-          for (const source of Object.values(style.sources as Record<string, unknown>)) {
-            if (source && typeof source === "object") {
-              const sourceData = source as Record<string, unknown>;
-              if (typeof sourceData.url === "string" && sourceData.url.startsWith("mapbox://")) {
-                const sourceId = sourceData.url.slice("mapbox://".length);
-                sourceData.url = `https://api.mapbox.com/v4/${sourceId}.json?${tokenParam}`;
-              }
-              if (Array.isArray(sourceData.tiles)) {
-                sourceData.tiles = sourceData.tiles.map((tile) =>
-                  typeof tile === "string" && tile.startsWith("mapbox://")
-                    ? tile.replace("mapbox://", "https://api.mapbox.com/v4/") + (tile.includes("?") ? "&" : "?") + tokenParam
-                    : tile
-                );
-              }
-            }
-          }
-        }
-
-        map = new mapboxgl.Map({
+        map = new maplibregl.Map({
           container: host,
-          style: style as mapboxgl.StyleSpecification,
+          style,
           center: [initial.lng, initial.lat],
           zoom: 17.2,
           pitch: 0,
@@ -167,9 +142,6 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           attributionControl: true,
           logoPosition: "bottom-left",
           cooperativeGestures: false,
-          // Os estilos oficiais Mapbox podem conter metadados fora do schema MapLibre.
-          // Não bloquear o carregamento por validação estrita desses campos.
-          validateStyle: false,
         });
         mapRef.current = map;
 
@@ -199,7 +171,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         });
 
         map.on("error", (event) => {
-          console.warn("[Circuito Mapbox mapa]", event.error);
+          console.warn("[Circuito OpenStreetMap mapa]", event.error);
           if (!disposed && map && !map.isStyleLoaded()) {
             setMapError(`Falha ao carregar o mapa Mapbox: ${event.error?.message ?? "erro de estilo ou conexão"}. Verifique se o token está ativo e possui o escopo styles:read.`);
           }
@@ -208,7 +180,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         resize = new ResizeObserver(() => map?.resize());
         resize.observe(host);
       } catch (error) {
-        console.error("[Circuito] Falha ao iniciar Mapbox", error);
+        console.error("[Circuito] Falha ao iniciar mapa", error);
         if (!disposed) {
           setMapError(`Falha ao iniciar o mapa Mapbox: ${error instanceof Error ? error.message : String(error)}. Verifique o token público e a conexão.`);
         }
@@ -243,7 +215,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     markersRef.current = [];
 
     if (state.base) {
-      markersRef.current.push(new mapboxgl.Marker({ element: markerElement("BASE", "base"), anchor: "center" })
+      markersRef.current.push(new maplibregl.Marker({ element: markerElement("BASE", "base"), anchor: "center" })
         .setLngLat([state.base.lng, state.base.lat]).addTo(map));
     }
 
@@ -257,20 +229,20 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       const done = item.status === "entregue";
       const element = markerElement(index >= 0 ? String(index + 1) : "•", done ? "done" : "stop");
       if (upcoming?.id === item.id) element.classList.add("is-next");
-      const marker = new mapboxgl.Marker({ element, anchor: "center" })
+      const marker = new maplibregl.Marker({ element, anchor: "center" })
         .setLngLat([item.lng, item.lat]).addTo(map);
       marker.getElement().addEventListener("click", () => useDelivery.getState().select(item.id));
       markersRef.current.push(marker);
     }
 
     if (run?.destino) {
-      markersRef.current.push(new mapboxgl.Marker({ element: markerElement("DESTINO", "stop"), anchor: "center" })
+      markersRef.current.push(new maplibregl.Marker({ element: markerElement("DESTINO", "stop"), anchor: "center" })
         .setLngLat([run.destino.lng, run.destino.lat]).addTo(map));
     }
 
     const draft = state.draft;
     if (draft?.lat != null && draft.lng != null) {
-      markersRef.current.push(new mapboxgl.Marker({ element: markerElement("NOVO", "stop"), anchor: "center" })
+      markersRef.current.push(new maplibregl.Marker({ element: markerElement("NOVO", "stop"), anchor: "center" })
         .setLngLat([draft.lng, draft.lat]).addTo(map));
     }
 
@@ -290,7 +262,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       }
       previousPosition.current = current;
       if (!riderRef.current) {
-        riderRef.current = new mapboxgl.Marker({ element: markerElement("🏍️", "rider"), anchor: "center", rotationAlignment: "viewport" })
+        riderRef.current = new maplibregl.Marker({ element: markerElement("🏍️", "rider"), anchor: "center", rotationAlignment: "viewport" })
           .setLngLat([current.lng, current.lat]).addTo(map);
       } else {
         riderRef.current.setLngLat([current.lng, current.lat]);
@@ -375,7 +347,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     const pin = document.createElement("div");
     pin.className = "circuito-search-pin";
     pin.innerHTML = '<span></span>';
-    searchMarkerRef.current = new mapboxgl.Marker({ element: pin, anchor: "bottom" })
+    searchMarkerRef.current = new maplibregl.Marker({ element: pin, anchor: "bottom" })
       .setLngLat([hit.lng, hit.lat]).addTo(map);
     map.easeTo({ center: [hit.lng, hit.lat], zoom: 17.2, pitch: 0, bearing: 0, duration: 900 });
   }
@@ -439,7 +411,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       </div> : null}
       {mapError ? (
         <div role="alert" className="absolute bottom-3 left-3 right-3 z-30 rounded-2xl border border-danger bg-bg px-4 py-4 text-sm leading-relaxed text-paper shadow-xl">
-          <strong className="mb-2 block text-base text-danger">Mapa Mapbox indisponível</strong>
+          <strong className="mb-2 block text-base text-danger">Mapa indisponível</strong>
           <p className="break-words">{mapError}</p>
           <button type="button" className="mt-3 rounded-xl border border-line px-4 py-2 font-semibold" onClick={() => { setMapError(""); setMapRetry((value) => value + 1); }}>Tentar novamente</button>
         </div>
@@ -451,7 +423,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         {!navigating ? <IconButton label="Enquadrar rota" onClick={() => {
           const points = useDelivery.getState().routeLine;
           if (points.length > 1 && mapRef.current) {
-            const bounds = new mapboxgl.LngLatBounds();
+            const bounds = new maplibregl.LngLatBounds();
             points.forEach((point) => bounds.extend([point.lng, point.lat]));
             mapRef.current.fitBounds(bounds, { padding: 80, maxZoom: 17, duration: 700 });
           } else useDelivery.getState().requestFit();
