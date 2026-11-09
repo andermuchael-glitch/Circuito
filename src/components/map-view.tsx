@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Home, LocateFixed, Maximize2, Minimize2, Crosshair, Search, X, Layers2, Navigation, Volume2, VolumeX, ArrowUpRight, CornerUpLeft, CornerUpRight } from "lucide-react";
-import mapboxgl from "mapbox-gl";
-import type { Map as MapboxMap, Marker, GeoJSONSource } from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import mapboxgl from "maplibre-gl";
+import type { Map as MapboxMap, Marker, GeoJSONSource } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { IconButton } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, useDelivery } from "@/lib/delivery-store";
 import { bearing, type LatLng } from "@/lib/geo";
@@ -109,8 +109,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       const map = new mapboxgl.Map({
         container: host,
         style: darkStyle
-          ? "mapbox://styles/mapbox/dark-v11"
-          : "mapbox://styles/mapbox/streets-v12",
+          ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_ACCESS_TOKEN}`
+          : `https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=${MAPBOX_ACCESS_TOKEN}`,
         center: [initial.lng, initial.lat],
         zoom: 17.2,
         pitch: 0,
