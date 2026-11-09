@@ -36,14 +36,14 @@ function instruction(step: OsrmStep) {
   const dir = turnWord[modifier] ?? "";
   const street = step.name?.trim();
   if (type === "arrive") return street ? `Chegou em ${street}` : "Chegou ao destino";
-  if (type === "roundabout" || type === "rotary") return street ? `Rotatória para ${street}` : "Na rotatória";
-  if (type === "merge") return street ? `Entre na ${street}` : "Entre na via";
-  if (type === "fork" || type === "end of road") return dir ? `Pegue ${dir}` : "Na bifurcação";
+  if (type === "roundabout" || type === "rotary") return street ? `Na rotatória, siga as placas para ${street}` : "Entre na rotatória e siga as placas";
+  if (type === "merge") return street ? `Acesse a via e continue pela ${street}` : "Acesse a via";
+  if (type === "fork" || type === "end of road") return street ? `Na bifurcação, pegue ${dir || "a saída"} para ${street}` : dir ? `Na bifurcação, pegue ${dir}` : "Na bifurcação, escolha a saída indicada";
   if (modifier === "uturn") return "Faça o retorno";
   if (type === "new name" || type === "continue" || modifier === "straight" || !modifier) {
-    return street ? `Siga na ${street}` : "Siga em frente";
+    return street ? `Continue em frente pela ${street}` : "Continue em frente";
   }
-  return street ? `Vire ${dir} na ${street}` : `Vire ${dir}`;
+  return street ? `Vire ${dir} e entre na ${street}` : `Vire ${dir}`;
 }
 
 function cueFromSteps(steps: OsrmStep[]): RouteCue | null {
