@@ -48,7 +48,20 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
   const searchMarkerRef = useRef<Marker | null>(null);
   const previousPosition = useRef<LatLng | null>(null);
   const headingRef = useRef(0);
+  const lastCameraPosition = useRef<LatLng | null>(null);
   const fitted = useRef(-1);
+
+  function distanceMeters(a: LatLng, b: LatLng) {
+    const lat = ((a.lat + b.lat) / 2) * Math.PI / 180;
+    const north = (b.lat - a.lat) * 111_320;
+    const east = (b.lng - a.lng) * 111_320 * Math.cos(lat);
+    return Math.hypot(north, east);
+  }
+
+  function smoothAngle(from: number, to: number, factor: number) {
+    const delta = ((to - from + 540) % 360) - 180;
+    return (from + delta * factor + 360) % 360;
+  }
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState("");
   const [mapRetry, setMapRetry] = useState(0);
@@ -210,8 +223,13 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     const current = state.gaze ?? run?.points[run.points.length - 1] ?? null;
     if (current) {
       const previous = previousPosition.current;
-      if (previous && Math.hypot(previous.lat - current.lat, previous.lng - current.lng) > 0.00002) {
-        headingRef.current = bearing(previous, current);
+      if (previous) {
+        const moved = distanceMeters(previous, current);
+        // Pequenas oscilações do GPS (até ~4 m) não devem girar o mapa.
+        if (moved >= 4) {
+          const measuredHeading = bearing(previous, current);
+          headingRef.current = smoothAngle(headingRef.current, measuredHeading, moved >= 12 ? 0.32 : 0.16);
+        }
       }
       previousPosition.current = current;
       if (!riderRef.current) {
@@ -230,16 +248,23 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       fitted.current = state.fitToken;
       if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 18.5, pitch: 62, offset: [0, 105], duration: 650 });
     } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
-      // Modo navegação: a rua fica alinhada com a direção real do deslocamento.
-      map.easeTo({
-        center: [current.lng, current.lat],
-        zoom: Math.max(map.getZoom(), 18.5),
-        pitch: 62,
-        offset: [0, 95],
-        bearing: headingRef.current,
-        duration: 550,
-        essential: true,
-      });
+      // Só reposiciona a câmera após deslocamento real; evita animações reiniciadas
+      // por cada pequena variação do GPS.
+      const cameraPrevious = lastCameraPosition.current;
+      const cameraMoved = cameraPrevious ? distanceMeters(cameraPrevious, current) : 999;
+      const bearingDelta = Math.abs(((headingRef.current - map.getBearing() + 540) % 360) - 180);
+      if (!cameraPrevious || cameraMoved >= 4 || bearingDelta >= 7) {
+        lastCameraPosition.current = current;
+        map.easeTo({
+          center: [current.lng, current.lat],
+          zoom: Math.max(map.getZoom(), 18.5),
+          pitch: 58,
+          offset: [0, 110],
+          bearing: headingRef.current,
+          duration: 1000,
+          essential: true,
+        });
+      }
       riderRef.current?.setRotation(headingRef.current - map.getBearing());
     }
   }, [ready, tick, tab]);
