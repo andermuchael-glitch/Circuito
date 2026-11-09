@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Home, LocateFixed, Maximize2, Minimize2, Crosshair, Search, X, Layers2, Navigation, Volume2, VolumeX, ArrowUpRight, CornerUpLeft, CornerUpRight } from "lucide-react";
-import mapboxgl from "maplibre-gl";
+import * as mapboxgl from "maplibre-gl";
 import type { Map as MapboxMap, Marker, GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { IconButton } from "@/components/bits";
