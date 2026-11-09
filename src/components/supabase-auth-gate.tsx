@@ -32,6 +32,7 @@ export function SupabaseAuthGate() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [accountOpen, setAccountOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -103,7 +104,6 @@ export function SupabaseAuthGate() {
   }
 
   if (!ready) return <div className="grid min-h-dvh place-items-center bg-[#07110c] text-white">Carregando conta…</div>;
-  const [accountOpen, setAccountOpen] = useState(false);
 
   if (session && mode !== "reset") return <div className="relative h-dvh"><App /><div className="absolute right-3 top-3 z-50">
     <button type="button" aria-label="Abrir menu da conta" aria-expanded={accountOpen} onClick={() => setAccountOpen(v => !v)} className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-[#101c16]/95 text-white shadow-lg">
