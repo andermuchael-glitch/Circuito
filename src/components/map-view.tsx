@@ -124,7 +124,6 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         const response = await fetch(styleUrl);
         if (!response.ok) throw new Error(`Mapbox respondeu HTTP ${response.status}`);
         const style = await response.json() as Record<string, unknown>;
-        delete style.name;
         if (disposed) return;
 
         map = new mapboxgl.Map({
@@ -139,6 +138,9 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           attributionControl: true,
           logoPosition: "bottom-left",
           cooperativeGestures: false,
+          // Os estilos oficiais Mapbox podem conter metadados fora do schema MapLibre.
+          // Não bloquear o carregamento por validação estrita desses campos.
+          validateStyle: false,
         });
         mapRef.current = map;
 
