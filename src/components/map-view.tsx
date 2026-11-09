@@ -115,6 +115,12 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         style: darkStyle
           ? `https://api.mapbox.com/styles/v1/mapbox/dark-v11?access_token=${MAPBOX_ACCESS_TOKEN}`
           : `https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=${MAPBOX_ACCESS_TOKEN}`,
+        // O JSON de estilos Mapbox inclui "name" no nível raiz; remova-o para compatibilidade com o validador MapLibre.
+        transformStyle: (_previousStyle, nextStyle) => {
+          const compatibleStyle = { ...nextStyle } as Record<string, unknown>;
+          delete compatibleStyle.name;
+          return compatibleStyle as typeof nextStyle;
+        },
         center: [initial.lng, initial.lat],
         zoom: 17.2,
         pitch: 0,
