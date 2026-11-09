@@ -149,8 +149,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
 
         map.once("load", () => {
           if (disposed || !map) return;
-          map.setBearing(0);
-          map.setPitch(0);
+          map.setBearing(headingRef.current);
+          map.setPitch(28);
           map.addSource("circuito-route", {
             type: "geojson",
             data: featureLine([]),
@@ -269,8 +269,9 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       } else {
         riderRef.current.setLngLat([current.lng, current.lat]);
       }
-      // O mapa fica sempre com o norte para cima; somente o ícone da moto indica a direção.
-      riderRef.current.setRotation(headingRef.current);
+      // Durante a navegação, a moto permanece apontada para cima e o mapa gira
+      // para alinhar a rua com o sentido real do deslocamento.
+      riderRef.current.setRotation(navigating ? 0 : headingRef.current);
     } else {
       riderRef.current?.remove();
       riderRef.current = null;
@@ -279,7 +280,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     if (state.fitToken !== fitted.current) {
       fitted.current = state.fitToken;
       lastCameraPosition.current = current;
-      if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 17.2, pitch: 0, bearing: 0, offset: [0, 90], duration: 650 });
+      if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 17.2, pitch: navigating ? 28 : 0, bearing: navigating ? headingRef.current : 0, offset: [0, navigating ? 135 : 90], duration: 650 });
     } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
       // A câmera só acompanha após 12 m de deslocamento real. Isso evita que
       // oscilações de precisão do GPS reiniciem a animação continuamente.
@@ -290,9 +291,9 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         map.easeTo({
           center: [current.lng, current.lat],
           zoom: Math.min(Math.max(map.getZoom(), 16.8), 17.3),
-          pitch: 0,
-          bearing: 0,
-          offset: [0, 95],
+          pitch: navigating ? 28 : 0,
+          bearing: navigating ? headingRef.current : 0,
+          offset: [0, navigating ? 135 : 95],
           duration: 650,
           essential: true,
         });
@@ -358,7 +359,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     if (state.liveStatus !== "ativo" && state.liveStatus !== "buscando") state.enableLive();
     const position = useDelivery.getState().gaze;
     if (position && mapRef.current) {
-      mapRef.current.easeTo({ center: [position.lng, position.lat], zoom: 17.2, pitch: 0, bearing: 0, offset: [0, 80], duration: 800 });
+      mapRef.current.easeTo({ center: [position.lng, position.lat], zoom: 17.2, pitch: navigating ? 28 : 0, bearing: navigating ? headingRef.current : 0, offset: [0, navigating ? 135 : 80], duration: 800 });
     }
   }
 
