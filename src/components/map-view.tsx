@@ -114,8 +114,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         mapLibre: {
           container: host,
           center: [initial.lng, initial.lat],
-          zoom: 18.5,
-          pitch: 62,
+          zoom: 17.8,
+          pitch: 44,
           bearing: 0,
           maxZoom: 20,
           minZoom: 3,
@@ -247,7 +247,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     if (state.fitToken !== fitted.current) {
       fitted.current = state.fitToken;
       lastCameraPosition.current = current;
-      if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 18.5, pitch: 62, offset: [0, 105], duration: 650 });
+      if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 17.8, pitch: 44, offset: [0, 90], duration: 650 });
     } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
       // Só reposiciona a câmera após deslocamento real; evita animações reiniciadas
       // por cada pequena variação do GPS.
@@ -258,8 +258,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         lastCameraPosition.current = current;
         map.easeTo({
           center: [current.lng, current.lat],
-          zoom: Math.max(map.getZoom(), 18.5),
-          pitch: 58,
+          zoom: Math.min(Math.max(map.getZoom(), 17.8), 18.2),
+          pitch: 44,
           offset: [0, 110],
           bearing: headingRef.current,
           duration: 1000,
@@ -319,7 +319,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     pin.innerHTML = '<span></span>';
     searchMarkerRef.current = new maplibregl.Marker({ element: pin, anchor: "bottom" })
       .setLngLat([hit.lng, hit.lat]).addTo(map);
-    map.easeTo({ center: [hit.lng, hit.lat], zoom: 18.2, pitch: 58, duration: 900 });
+    map.easeTo({ center: [hit.lng, hit.lat], zoom: 17.8, pitch: 44, duration: 900 });
   }
 
   function locate() {
@@ -328,7 +328,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     if (state.liveStatus !== "ativo" && state.liveStatus !== "buscando") state.enableLive();
     const position = useDelivery.getState().gaze;
     if (position && mapRef.current) {
-      mapRef.current.easeTo({ center: [position.lng, position.lat], zoom: 18.5, pitch: 62, bearing: headingRef.current, offset: [0, 95], duration: 800 });
+      mapRef.current.easeTo({ center: [position.lng, position.lat], zoom: 17.8, pitch: 44, bearing: headingRef.current, offset: [0, 80], duration: 800 });
     }
   }
 
