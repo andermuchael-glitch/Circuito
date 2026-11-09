@@ -257,20 +257,20 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       const done = item.status === "entregue";
       const element = markerElement(index >= 0 ? String(index + 1) : "•", done ? "done" : "stop");
       if (upcoming?.id === item.id) element.classList.add("is-next");
-      const marker = new maplibregl.Marker({ element, anchor: "center" })
+      const marker = new mapboxgl.Marker({ element, anchor: "center" })
         .setLngLat([item.lng, item.lat]).addTo(map);
       marker.getElement().addEventListener("click", () => useDelivery.getState().select(item.id));
       markersRef.current.push(marker);
     }
 
     if (run?.destino) {
-      markersRef.current.push(new maplibregl.Marker({ element: markerElement("DESTINO", "stop"), anchor: "center" })
+      markersRef.current.push(new mapboxgl.Marker({ element: markerElement("DESTINO", "stop"), anchor: "center" })
         .setLngLat([run.destino.lng, run.destino.lat]).addTo(map));
     }
 
     const draft = state.draft;
     if (draft?.lat != null && draft.lng != null) {
-      markersRef.current.push(new maplibregl.Marker({ element: markerElement("NOVO", "stop"), anchor: "center" })
+      markersRef.current.push(new mapboxgl.Marker({ element: markerElement("NOVO", "stop"), anchor: "center" })
         .setLngLat([draft.lng, draft.lat]).addTo(map));
     }
 
@@ -290,7 +290,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       }
       previousPosition.current = current;
       if (!riderRef.current) {
-        riderRef.current = new maplibregl.Marker({ element: markerElement("🏍️", "rider"), anchor: "center", rotationAlignment: "viewport" })
+        riderRef.current = new mapboxgl.Marker({ element: markerElement("🏍️", "rider"), anchor: "center", rotationAlignment: "viewport" })
           .setLngLat([current.lng, current.lat]).addTo(map);
       } else {
         riderRef.current.setLngLat([current.lng, current.lat]);
@@ -375,7 +375,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     const pin = document.createElement("div");
     pin.className = "circuito-search-pin";
     pin.innerHTML = '<span></span>';
-    searchMarkerRef.current = new maplibregl.Marker({ element: pin, anchor: "bottom" })
+    searchMarkerRef.current = new mapboxgl.Marker({ element: pin, anchor: "bottom" })
       .setLngLat([hit.lng, hit.lat]).addTo(map);
     map.easeTo({ center: [hit.lng, hit.lat], zoom: 17.2, pitch: 0, bearing: 0, duration: 900 });
   }
