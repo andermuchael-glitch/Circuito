@@ -49,6 +49,7 @@ jobs:
         env:
           NITRO_PRESET: github_pages
           VITE_TOMTOM_API_KEY: ${{ secrets.VITE_TOMTOM_API_KEY }}
+          VITE_MAPBOX_ACCESS_TOKEN: ${{ secrets.VITE_MAPBOX_ACCESS_TOKEN }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .output/public
