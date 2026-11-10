@@ -8,7 +8,6 @@ import { holdScreen } from "@/lib/screen";
 import { MapView } from "@/components/map-view";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/cn";
-import { calculateTomTomRoute } from "@/lib/tomtom-routing";
 import { drivingRoute } from "@/lib/routing";
 import { createLiveShare, createPermanentLiveShare, publishPermanentLiveShare, stopLiveShare } from "@/lib/live-sharing";
 
@@ -81,7 +80,7 @@ export function RotaPanel() {
     if (run?.destino) {
       return [gaze ?? origin, { lat: run.destino.lat, lng: run.destino.lng }];
     }
-    if (searchDestination) {
+    if (!run && searchDestination) {
       return [gaze ?? origin, { lat: searchDestination.lat, lng: searchDestination.lng }];
     }
     if (run) {
@@ -253,6 +252,9 @@ export function RotaPanel() {
           <div className="mt-4 rounded-2xl border border-signal bg-raised p-3">
             <p className="text-xs font-semibold tracking-wide text-muted">DESTINO PESQUISADO</p>
             <p className="mt-1 text-sm font-medium">{searchDestination.label}</p>
+            <p className="mt-2 text-xs text-muted">
+              {routeLoading ? "Calculando rota pelas ruas…" : routeFailed ? "Não foi possível calcular a rota. Confira a conexão e tente novamente." : routeKm != null ? `Rota viária: ${kmLabel(routeKm)} · ${routeDurationSeconds != null ? duration(routeDurationSeconds) : "tempo indisponível"}` : "Aguardando cálculo da rota…"}
+            </p>
             <div className="mt-3"><PrimaryButton disabled={Boolean(ativaId)} onClick={() => {
               void holdScreen();
               useDelivery.getState().startDestinationRun(searchDestination);
