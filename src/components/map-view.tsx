@@ -12,7 +12,7 @@ import { IconButton } from "@/components/bits";
 import { comPin, corridaAtiva, nextStop, useDelivery } from "@/lib/delivery-store";
 import { bearing, type LatLng } from "@/lib/geo";
 import { startOfToday } from "@/lib/format";
-import { searchNominatim } from "@/lib/places";
+import { rememberAddressPin, searchNominatim } from "@/lib/places";
 import { cn } from "@/lib/cn";
 
 type SearchHit = { label: string; lat: number; lng: number };
@@ -410,6 +410,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       if (!point) return;
       const corrected = { label: `${hit.label} · ponto ajustado`, lat: point.lat, lng: point.lng };
       setSelectedLabel(corrected.label);
+      rememberAddressPin(hit.label, { lat: point.lat, lng: point.lng }, corrected.label);
       useDelivery.getState().setSearchDestination(corrected);
     });
     map.easeTo({ center: [hit.lng, hit.lat], zoom: 17.2, pitch: 0, bearing: 0, duration: 900 });
