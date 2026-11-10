@@ -74,8 +74,8 @@ export function houseNumber(query: string): string | null {
 
 function cityOf(query: string) {
   if (/itaj[aíi]/i.test(query)) return "Itajaí";
-  if (/balne[aá]rio\\s+cambori[uú]/i.test(query)) return "Balneário Camboriú";
-  if (/\\bcambori[uú]\\b/i.test(query)) return "Camboriú";
+  if (/balne[aá]rio\s+cambori[uú]/i.test(query)) return "Balneário Camboriú";
+  if (/\bcambori[uú]\b/i.test(query)) return "Camboriú";
   return null;
 }
 
@@ -95,11 +95,11 @@ export function searchPlaces(query: string, near?: LatLng | null) {
 }
 
 function expandQueries(query: string) {
-  const q = query.trim().replace(/\\s+/g, " ");
+  const q = query.trim().replace(/\s+/g, " ");
   const city = cityOf(q);
   const suffix = city ? "" : `, ${DEFAULT_CITY}`;
   const out = [q, `${q}${suffix}`];
-  const house = q.match(/^(.*\\D)[,\\s]+(\\d{1,5})$/);
+  const house = q.match(/^(.*\D)[,\s]+(\d{1,5})$/);
   if (house) {
     const street = house[1].trim();
     const num = house[2];
