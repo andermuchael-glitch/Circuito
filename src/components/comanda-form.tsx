@@ -45,7 +45,7 @@ export function ComandaForm() {
     setSearchingAddress(true);
     setSearchFinished(false);
     const timer = window.setTimeout(() => {
-      void searchNominatim(query, null)
+      void searchNominatim(query, near)
         .then((found) => {
           if (cancel) return;
           setHits(found);
@@ -250,7 +250,12 @@ export function ComandaForm() {
             ) : null}
 
             {pinned ? (
-              <p className="mt-2 text-xs text-go">Endereço localizado e coordenadas prontas para a rota.</p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-go">Endereço localizado e coordenadas prontas para a rota.</p>
+                <button type="button" onClick={() => useDelivery.getState().startPick()} className="rounded-xl border border-line px-3 py-2 text-xs font-semibold text-paper">
+                  Ajustar ponto no mapa
+                </button>
+              </div>
             ) : searchingAddress ? (
               <p className="mt-2 text-xs text-muted">Pesquisando endereços próximos…</p>
             ) : searchFinished && hits.length === 0 ? (
