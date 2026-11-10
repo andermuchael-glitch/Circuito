@@ -24,6 +24,7 @@ export function RotaPanel() {
   const gaze = useDelivery((state) => state.gaze);
   const origin = partida({ base, gaze });
   const routeKm = useDelivery((state) => state.routeKm);
+  const routeDurationSeconds = useDelivery((state) => state.routeDurationSeconds);
   const routeKind = useDelivery((state) => state.routeKind);
   const routeCue = useDelivery((state) => state.routeCue);
   const searchDestination = useDelivery((state) => state.searchDestination);
@@ -130,7 +131,7 @@ export function RotaPanel() {
           const osrm = await drivingRoute(routeStops);
           if (controller.signal.aborted) return;
           if (osrm) {
-            useDelivery.getState().setRoute({ line: osrm.points, km: osrm.km, kind: "rua", cue: osrm.cue });
+            useDelivery.getState().setRoute({ line: osrm.points, km: osrm.km, durationSeconds: osrm.durationSeconds, kind: "rua", cue: osrm.cue });
             setRouteLoading(false);
             return;
           }
@@ -414,8 +415,12 @@ export function RotaPanel() {
         ? `${Math.round(gpsMeta.speed)}`
         : "—";
   const speedKmh = run.modo === "gps" && gpsMeta.speed != null && gpsMeta.speed >= 0 && gpsMeta.speed <= 180 ? gpsMeta.speed : null;
-  const etaMinutes = speedKmh != null && speedKmh >= 3 ? Math.ceil((remainingKm / speedKmh) * 60) : null;
+  const routeEtaMinutes = routeKind === "rua" && routeDurationSeconds != null && routeDurationSeconds > 0
+    ? Math.ceil(routeDurationSeconds / 60)
+    : null;
+  const etaMinutes = routeEtaMinutes ?? (speedKmh != null && speedKmh >= 3 ? Math.ceil((remainingKm / speedKmh) * 60) : null);
   const etaLabel = etaMinutes == null ? "—" : etaMinutes < 60 ? etaMinutes + " min" : Math.floor(etaMinutes / 60) + "h " + String(etaMinutes % 60).padStart(2, "0") + "min";
+  const etaArrival = etaMinutes == null ? null : new Date(now + etaMinutes * 60_000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
   return (
     <div className="scroll h-full min-h-0 overflow-y-auto px-4 py-4">
@@ -445,6 +450,7 @@ export function RotaPanel() {
           <Stat label="TEMPO RESTANTE" value={etaLabel} />
           <Stat label="KM RESTANTE" value={kmLabel(remainingKm)} />
         </dl>
+        {etaArrival ? <p className="border-t border-line px-3 pb-3 text-xs text-muted">Chegada estimada: <strong className="text-signal">{etaArrival}</strong> · {routeEtaMinutes != null ? "considerando o trânsito da rota" : "estimativa pela velocidade atual"}</p> : null}
         <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[68vh] min-h-[520px]")}>
           <MapView navigating destinationLabel={upcoming ? `Comanda ${upcoming.numero} · ${upcoming.endereco}` : destinationOnly ? run.destino?.label : "Voltando para a base"} instruction={routeLoading ? "Calculando a próxima manobra…" : routeCue?.text ?? (upcoming ? `Siga até ${upcoming.endereco}` : "Siga em frente até a base")} instructionMeters={routeCue?.meters ?? null} audioEnabled={voiceEnabled} onToggleAudio={() => setVoiceEnabled((value) => !value)} expanded={mapExpanded} onToggleExpanded={() => setMapExpanded((value) => !value)} />
         </div>
