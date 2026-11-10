@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Home, LocateFixed, Maximize2, Minimize2, Crosshair, Search, X, Layers2, Navigation, Volume2, VolumeX, ArrowUpRight, CornerUpLeft, CornerUpRight } from "lucide-react";
+import { Home, LocateFixed, Maximize2, Minimize2, Crosshair, Search, X, Layers2, Navigation, Volume2, VolumeX, ArrowUpRight, CornerUpLeft, CornerUpRight, TrafficCone } from "lucide-react";
 import * as maplibregl from "maplibre-gl";
 import { setWorkerUrl } from "maplibre-gl";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
@@ -69,6 +69,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
   const [mapError, setMapError] = useState("");
   const [mapRetry, setMapRetry] = useState(0);
   const [darkStyle, setDarkStyle] = useState(true);
+  const trafficKey = import.meta.env.VITE_TOMTOM_API_KEY as string | undefined;
+  const [trafficEnabled, setTrafficEnabled] = useState(Boolean(trafficKey));
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -151,6 +153,27 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           if (disposed || !map) return;
           map.setBearing(headingRef.current);
           map.setPitch(28);
+
+          // Camada visual TomTom: cores sobre as ruas indicam a velocidade
+          // relativa ao fluxo livre (verde livre, amarelo lento, vermelho congestionado).
+          if (trafficKey) {
+            const trafficTiles = `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${encodeURIComponent(trafficKey)}`;
+            map.addSource("tomtom-traffic-flow", {
+              type: "raster",
+              tiles: [trafficTiles],
+              tileSize: 256,
+              attribution: "© TomTom Traffic",
+              maxzoom: 22,
+            });
+            map.addLayer({
+              id: "tomtom-traffic-flow-layer",
+              type: "raster",
+              source: "tomtom-traffic-flow",
+              paint: { "raster-opacity": 0.82, "raster-fade-duration": 250 },
+              layout: { visibility: trafficEnabled ? "visible" : "none" },
+            });
+          }
+
           map.addSource("circuito-route", {
             type: "geojson",
             data: featureLine([]),
@@ -494,7 +517,22 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           <button type="button" className="mt-3 rounded-xl border border-line px-4 py-2 font-semibold" onClick={() => { setMapError(""); setMapRetry((value) => value + 1); }}>Tentar novamente</button>
         </div>
       ) : null}
+      {!navigating && trafficKey ? (
+        <div className="absolute bottom-3 left-3 z-10 rounded-xl border border-white/20 bg-[#071711]/90 px-3 py-2 text-[10px] font-bold text-white shadow-xl backdrop-blur">
+          <div className="mb-1 flex items-center gap-1.5"><span className={trafficEnabled ? "h-2 w-2 rounded-full bg-[#4ade80]" : "h-2 w-2 rounded-full bg-gray-400"} />{trafficEnabled ? "TRÂNSITO TOMTOM AO VIVO" : "TRÂNSITO DESATIVADO"}</div>
+          <div className="flex items-center gap-2 font-medium text-[#dce8e0]"><span className="h-1.5 w-5 rounded bg-[#27a55e]" /> Livre <span className="h-1.5 w-5 rounded bg-[#ffc105]" /> Lento <span className="h-1.5 w-5 rounded bg-[#ff2d2d]" /> Congestionado</div>
+        </div>
+      ) : null}
+      {!navigating && !trafficKey ? (
+        <div className="absolute bottom-3 left-3 z-10 rounded-xl border border-amber-400/50 bg-[#071711]/90 px-3 py-2 text-xs text-white shadow-xl">Trânsito indisponível: configure VITE_TOMTOM_API_KEY.</div>
+      ) : null}
       <div className={`absolute right-3 ${navigating ? "top-[5.5rem]" : "top-[4.5rem]"} z-10 flex flex-col gap-2`}>
+        {!navigating && trafficKey ? <IconButton label={trafficEnabled ? "Ocultar trânsito ao vivo" : "Mostrar trânsito ao vivo"} pressed={trafficEnabled} onClick={() => {
+          const next = !trafficEnabled;
+          setTrafficEnabled(next);
+          const trafficLayer = mapRef.current?.getLayer("tomtom-traffic-flow-layer");
+          if (trafficLayer && mapRef.current) mapRef.current.setLayoutProperty("tomtom-traffic-flow-layer", "visibility", next ? "visible" : "none");
+        }}><TrafficCone className="h-5 w-5" /></IconButton> : null}
         <IconButton label="Onde estou" pressed={liveStatus === "ativo"} onClick={locate}><LocateFixed className="h-5 w-5" /></IconButton>
         <IconButton label={darkStyle ? "Mapa claro" : "Mapa escuro"} pressed={darkStyle} onClick={toggleStyle}><Layers2 className="h-5 w-5" /></IconButton>
         <IconButton label="Seguir posição" pressed={follow} onClick={() => useDelivery.getState().setFollow(!useDelivery.getState().follow)}><Crosshair className="h-5 w-5" /></IconButton>
