@@ -80,6 +80,37 @@ function cityOf(query: string) {
 }
 
 const DEFAULT_CITY = "Balneário Camboriú, Santa Catarina";
+const SAVED_ADDRESS_PINS_KEY = "circuito-corrected-address-pins-v1";
+
+function addressKey(value: string) {
+  return fold(value).replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+export function rememberAddressPin(address: string, point: LatLng, label?: string) {
+  if (typeof window === "undefined" || !address.trim()) return;
+  try {
+    const raw = localStorage.getItem(SAVED_ADDRESS_PINS_KEY);
+    const saved = raw ? JSON.parse(raw) as Record<string, { lat: number; lng: number; label: string }> : {};
+    saved[addressKey(address)] = { lat: point.lat, lng: point.lng, label: label || address.trim() };
+    localStorage.setItem(SAVED_ADDRESS_PINS_KEY, JSON.stringify(saved));
+  } catch {
+    // O histórico local é auxiliar; a busca online continua funcionando sem ele.
+  }
+}
+
+function rememberedAddressPin(address: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(SAVED_ADDRESS_PINS_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as Record<string, { lat: number; lng: number; label: string }>;
+    const hit = saved[addressKey(address)];
+    if (!hit || !Number.isFinite(hit.lat) || !Number.isFinite(hit.lng)) return null;
+    return { label: hit.label, lat: hit.lat, lng: hit.lng };
+  } catch {
+    return null;
+  }
+}
 
 export function addressWithNumber(typed: string, found: string) {
   // Nunca invente/insira o número digitado em uma coordenada que não o confirmou.
@@ -212,6 +243,8 @@ async function searchTomTom(query: string, near?: LatLng | null): Promise<GeoHit
 export async function searchNominatim(query: string, near?: LatLng | null) {
   const trimmed = query.trim();
   if (trimmed.length < 3) return [];
+  const remembered = rememberedAddressPin(trimmed);
+  if (remembered) return [remembered];
   const seen = new Set<string>();
   const hits: { label: string; lat: number; lng: number }[] = [];
   const attempts = expandQueries(trimmed);
