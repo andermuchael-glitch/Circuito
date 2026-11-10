@@ -74,7 +74,7 @@ export function withCity(endereco: string) {
 }
 
 export function wazeLink(endereco: string) {
-  return `https://waze.com/ul?q=${encodeURIComponent(withCity(endereco))}&navigate=yes`;
+  return `https://waze.com/ul?q=${encodeURIComponent(withCity(endereco))}&navigate=yes&vehicle_type=motorcycle&utm_source=circuito`;
 }
 
 export function googleStopLink(endereco: string) {
