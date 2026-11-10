@@ -34,6 +34,12 @@ export function ComandaForm() {
   const pinned = draft?.lat != null && draft?.lng != null;
 
   useEffect(() => {
+    if (pinned && draft?.lat != null && draft.lng != null && endereco.trim()) {
+      rememberAddressPin(endereco, { lat: draft.lat, lng: draft.lng });
+    }
+  }, [pinned, endereco, draft?.lat, draft?.lng]);
+
+  useEffect(() => {
     const query = endereco.trim();
     if (query.length < 3 || pinned) {
       setHits([]);
