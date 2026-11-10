@@ -54,7 +54,7 @@ export function RouteEngine() {
       void drivingRoute(waypoints).then((routed) => {
         if (cancel) return;
         if (routed) {
-          useDelivery.getState().setRoute({ line: routed.points, km: routed.km, kind: "rua", cue: routed.cue });
+          useDelivery.getState().setRoute({ line: routed.points, km: routed.km, durationSeconds: routed.durationSeconds, kind: "rua", cue: routed.cue });
           return;
         }
         useDelivery.getState().setRoute({
