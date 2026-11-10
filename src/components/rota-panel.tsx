@@ -45,6 +45,25 @@ export function RotaPanel() {
   });
   const [permanentBusy, setPermanentBusy] = useState(false);
   const lastSpokenCue = useRef("");
+  const routeLine = useDelivery((state) => state.routeLine);
+  const currentRunPosition = gaze ?? (run?.points.length ? run.points[run.points.length - 1] : null) ?? origin;
+  const remainingKm = useMemo(() => {
+    if (!run) return 0;
+    if (routeLine.length >= 2) {
+      let nearest = 0;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      routeLine.forEach((point, index) => {
+        const distance = haversine(currentRunPosition, point);
+        if (distance < nearestDistance) { nearestDistance = distance; nearest = index; }
+      });
+      let km = nearestDistance;
+      for (let index = nearest; index < routeLine.length - 1; index++) km += haversine(routeLine[index], routeLine[index + 1]);
+      return km;
+    }
+    const target = run.destino ?? nextStop(run, comandas) ?? base;
+    return target ? haversine(currentRunPosition, target) : 0;
+  }, [run?.id, run?.destino?.lat, run?.destino?.lng, run?.feitas.join(","), comandas, routeLine, currentRunPosition.lat, currentRunPosition.lng, base?.lat, base?.lng]);
+
 
   const abertas = comandas.filter(comPin).filter((item) => item.status === "aberta");
   const selected = order
@@ -394,23 +413,6 @@ export function RotaPanel() {
       : gpsMeta.speed != null
         ? `${Math.round(gpsMeta.speed)}`
         : "—";
-  const currentPosition = gaze ?? last ?? origin;
-  const routeLine = useDelivery((state) => state.routeLine);
-  const remainingKm = useMemo(() => {
-    if (routeLine.length >= 2) {
-      let nearest = 0;
-      let nearestDistance = Number.POSITIVE_INFINITY;
-      routeLine.forEach((point, index) => {
-        const distance = haversine(currentPosition, point);
-        if (distance < nearestDistance) { nearestDistance = distance; nearest = index; }
-      });
-      let km = nearestDistance;
-      for (let index = nearest; index < routeLine.length - 1; index++) km += haversine(routeLine[index], routeLine[index + 1]);
-      return km;
-    }
-    const target = upcoming ?? (destinationOnly ? run.destino : base);
-    return target ? haversine(currentPosition, target) : 0;
-  }, [routeLine, currentPosition.lat, currentPosition.lng, upcoming?.id, destinationOnly, run.destino?.lat, run.destino?.lng, base?.lat, base?.lng]);
   const speedKmh = run.modo === "gps" && gpsMeta.speed != null && gpsMeta.speed >= 0 && gpsMeta.speed <= 180 ? gpsMeta.speed : null;
   const etaMinutes = speedKmh != null && speedKmh >= 3 ? Math.ceil((remainingKm / speedKmh) * 60) : null;
   const etaLabel = etaMinutes == null ? "—" : etaMinutes < 60 ? etaMinutes + " min" : Math.floor(etaMinutes / 60) + "h " + String(etaMinutes % 60).padStart(2, "0") + "min";
