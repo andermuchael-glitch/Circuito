@@ -177,8 +177,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
             id: "circuito-route-return-line",
             type: "line",
             source: "circuito-route-return",
-            layout: { "line-cap": "round", "line-join": "round", "line-dasharray": [1.5, 1.2] },
-            paint: { "line-color": "#f59e0b", "line-width": 7, "line-opacity": 1 },
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": "#f59e0b", "line-width": 7, "line-opacity": 1, "line-dasharray": [1.5, 1.2] },
           });
           setReady(true);
         });
@@ -288,7 +288,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       const previous = previousPosition.current;
       if (previous) {
         const moved = distanceMeters(previous, current);
-        // Atualiza a direção apenas após deslocamento consistente, evitando ruído do GPS parado.
+        // Atualiza a direção apenas após deslocamento consistente, evitando ruído do GPS.
         if (moved >= 8) {
           const measuredHeading = bearing(previous, current);
           headingRef.current = smoothAngle(headingRef.current, measuredHeading, moved >= 20 ? 0.24 : 0.12);
