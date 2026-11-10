@@ -411,7 +411,7 @@ export function RotaPanel() {
     const target = upcoming ?? (destinationOnly ? run.destino : base);
     return target ? haversine(currentPosition, target) : 0;
   }, [routeLine, currentPosition.lat, currentPosition.lng, upcoming?.id, destinationOnly, run.destino?.lat, run.destino?.lng, base?.lat, base?.lng]);
-  const speedKmh = run.modo === "gps" && gpsMeta.speed != null && gpsMeta.speed >= 0 ? gpsMeta.speed * 3.6 : null;
+  const speedKmh = run.modo === "gps" && gpsMeta.speed != null && gpsMeta.speed >= 0 && gpsMeta.speed <= 180 ? gpsMeta.speed : null;
   const etaMinutes = speedKmh != null && speedKmh >= 3 ? Math.ceil((remainingKm / speedKmh) * 60) : null;
   const etaLabel = etaMinutes == null ? "—" : etaMinutes < 60 ? etaMinutes + " min" : Math.floor(etaMinutes / 60) + "h " + String(etaMinutes % 60).padStart(2, "0") + "min";
 
