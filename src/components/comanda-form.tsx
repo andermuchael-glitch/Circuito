@@ -3,7 +3,7 @@ import { Loader2, MapPin, X } from "lucide-react";
 import { PrimaryButton } from "@/components/bits";
 import { useDelivery } from "@/lib/delivery-store";
 import { parseMoney } from "@/lib/format";
-import { addressWithNumber, searchNominatim } from "@/lib/places";
+import { addressWithNumber, rememberAddressPin, searchNominatim } from "@/lib/places";
 
 function diaHoje() {
   const now = new Date();
@@ -233,6 +233,7 @@ export function ComandaForm() {
                       type="button"
                       onClick={() => {
                         setHits([]);
+                        rememberAddressPin(draft.endereco, { lat: item.lat, lng: item.lng }, item.label);
                         useDelivery.getState().patchDraft({
                           endereco: addressWithNumber(draft.endereco, item.label),
                           lat: item.lat,
