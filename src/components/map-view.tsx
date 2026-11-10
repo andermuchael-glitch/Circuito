@@ -388,11 +388,56 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
   function locate() {
     const state = useDelivery.getState();
     state.setFollow(true);
-    if (state.liveStatus !== "ativo" && state.liveStatus !== "buscando") state.enableLive();
-    const position = useDelivery.getState().gaze;
-    if (position && mapRef.current) {
-      mapRef.current.easeTo({ center: [position.lng, position.lat], zoom: 17.2, pitch: navigating ? 28 : 0, bearing: navigating ? headingRef.current : 0, offset: [0, navigating ? 135 : 80], duration: 800 });
+
+    // Solicita uma leitura GPS nova diretamente após o toque do usuário.
+    // Não recentraliza usando gaze persistido, que pode ser de uma corrida antiga.
+    if (!navigator.geolocation) {
+      state.setLiveStatus("erro");
+      state.setGpsError("Este navegador não disponibiliza localização GPS.");
+      return;
     }
+
+    state.enableLive();
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const accuracy = Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null;
+        state.setGpsMeta({
+          accuracy,
+          speed: position.coords.speed == null || position.coords.speed < 0 ? null : position.coords.speed * 3.6,
+          weak: accuracy != null && accuracy > 35,
+        });
+        if (accuracy != null && accuracy > 65) {
+          state.setLiveStatus("buscando");
+          state.setGpsError(`Sinal GPS fraco (±${Math.round(accuracy)} m). Vá para um local aberto e tente novamente.`);
+          return;
+        }
+        const point = { lat: position.coords.latitude, lng: position.coords.longitude };
+        state.setGaze(point);
+        state.setLiveStatus("ativo");
+        state.setGpsError(null);
+        const map = mapRef.current;
+        if (map) {
+          map.easeTo({
+            center: [point.lng, point.lat],
+            zoom: 18,
+            pitch: navigating ? 28 : 0,
+            bearing: navigating ? headingRef.current : 0,
+            offset: [0, navigating ? 135 : 80],
+            duration: 900,
+          });
+        }
+      },
+      (error) => {
+        const message = error.code === 1
+          ? "Permissão de localização negada. Autorize a localização do Circuito nas configurações do navegador ou do Android."
+          : error.code === 2
+            ? "O GPS não conseguiu determinar sua posição. Ative a localização do aparelho e tente em local aberto."
+            : "O GPS demorou para responder. Confira se a localização do aparelho está ativada e tente novamente.";
+        state.setLiveStatus(error.code === 1 ? "negado" : "erro");
+        state.setGpsError(message);
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
+    );
   }
 
   function toggleStyle() {
