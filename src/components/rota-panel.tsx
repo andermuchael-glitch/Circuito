@@ -81,6 +81,9 @@ export function RotaPanel() {
     if (run?.destino) {
       return [gaze ?? origin, { lat: run.destino.lat, lng: run.destino.lng }];
     }
+    if (searchDestination) {
+      return [gaze ?? origin, { lat: searchDestination.lat, lng: searchDestination.lng }];
+    }
     if (run) {
       const pending = run.ordem
         .filter((id) => !run.feitas.includes(id))
@@ -98,6 +101,8 @@ export function RotaPanel() {
     run?.id,
     run?.destino?.lat,
     run?.destino?.lng,
+    searchDestination?.lat,
+    searchDestination?.lng,
     run?.ordem.join(","),
     run?.feitas.join(","),
     run?.points.length,
@@ -124,39 +129,35 @@ export function RotaPanel() {
     const controller = new AbortController();
     setRouteLoading(true);
     setRouteFailed(false);
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        try {
-          // OSRM fornece o trajeto e as instruções; TomTom fica como alternativa.
-          const osrm = await drivingRoute(routeStops);
-          if (controller.signal.aborted) return;
-          if (osrm) {
-            useDelivery.getState().setRoute({ line: osrm.points, km: osrm.km, durationSeconds: osrm.durationSeconds, kind: "rua", cue: osrm.cue });
-            setRouteLoading(false);
-            return;
-          }
-          const tomtom = await calculateTomTomRoute(routeStops, controller.signal);
-          if (controller.signal.aborted) return;
-          if (tomtom) {
-            useDelivery.getState().setRoute({ line: tomtom.line, km: tomtom.km, kind: "rua", cue: null });
-          } else {
-            useDelivery.getState().setRoute({ line: [], km: null, kind: null, cue: null });
-            setRouteFailed(true);
-          }
-        } catch (error) {
-          if (controller.signal.aborted) return;
-          console.warn("[Circuito] Falha ao calcular rota viária", error);
+
+    // Calcula assim que a origem ou destino muda, sem esperar o usuário iniciar a corrida.
+    void (async () => {
+      try {
+        const result = await drivingRoute(routeStops);
+        if (controller.signal.aborted) return;
+        if (result) {
+          useDelivery.getState().setRoute({
+            line: result.points,
+            km: result.km,
+            durationSeconds: result.durationSeconds,
+            kind: "rua",
+            cue: result.cue,
+          });
+        } else {
           useDelivery.getState().setRoute({ line: [], km: null, kind: null, cue: null });
           setRouteFailed(true);
-        } finally {
-          if (!controller.signal.aborted) setRouteLoading(false);
         }
-      })();
-    }, 900);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.warn("[Circuito] Falha ao calcular rota viária", error);
+        useDelivery.getState().setRoute({ line: [], km: null, kind: null, cue: null });
+        setRouteFailed(true);
+      } finally {
+        if (!controller.signal.aborted) setRouteLoading(false);
+      }
+    })();
+
+    return () => controller.abort();
   }, [routeRequestKey]);
   useEffect(() => {
     if (!run || run.modo !== "gps" || liveStatus !== "ativo" || !routeCue || routeKind !== "rua") return;
