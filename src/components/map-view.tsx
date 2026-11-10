@@ -169,6 +169,17 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
             layout: { "line-cap": "round", "line-join": "round" },
             paint: { "line-color": "#1685ff", "line-width": 7, "line-opacity": 1 },
           });
+          map.addSource("circuito-route-return", {
+            type: "geojson",
+            data: featureLine([]),
+          });
+          map.addLayer({
+            id: "circuito-route-return-line",
+            type: "line",
+            source: "circuito-route-return",
+            layout: { "line-cap": "round", "line-join": "round", "line-dasharray": [1.5, 1.2] },
+            paint: { "line-color": "#f59e0b", "line-width": 7, "line-opacity": 1 },
+          });
           setReady(true);
         });
 
@@ -250,7 +261,28 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
 
     const route = state.routeLine;
     const source = map.getSource("circuito-route") as GeoJSONSource | undefined;
-    source?.setData(featureLine(route.length > 1 ? route : []));
+    const returnSource = map.getSource("circuito-route-return") as GeoJSONSource | undefined;
+    // Separa o trecho final que chega à base para evitar confusão visual.
+    const base = state.base;
+    let returnStart = -1;
+    if (base && route.length >= 4) {
+      let nearestIndex = -1;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      route.forEach((point, index) => {
+        const distance = distanceMeters(point, base);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = index;
+        }
+      });
+      if (nearestIndex >= 2 && nearestIndex < route.length - 1 && nearestDistance < 120) {
+        returnStart = nearestIndex;
+      }
+    }
+    const deliveryRoute = returnStart >= 0 ? route.slice(0, returnStart + 1) : route;
+    const returnRoute = returnStart >= 0 ? route.slice(returnStart) : [];
+    source?.setData(featureLine(deliveryRoute.length > 1 ? deliveryRoute : []));
+    returnSource?.setData(featureLine(returnRoute.length > 1 ? returnRoute : []));
     const current = state.gaze ?? run?.points[run.points.length - 1] ?? null;
     if (current) {
       const previous = previousPosition.current;
