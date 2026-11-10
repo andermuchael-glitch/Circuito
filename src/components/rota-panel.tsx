@@ -349,16 +349,12 @@ export function RotaPanel() {
             <div className="grid grid-cols-2 gap-2">
             <a
               href={wazeLink(selected[0].endereco)}
-              target="_blank"
-              rel="noreferrer"
               className="inline-flex h-12 items-center justify-center rounded-full border border-line text-sm font-semibold"
             >
               Waze · 1ª parada
             </a>
             <a
               href={googleRouteLink(origin.endereco, selected.map((item) => item.endereco))}
-              target="_blank"
-              rel="noreferrer"
               className="inline-flex h-12 items-center justify-center rounded-full border border-line text-sm font-semibold"
             >
               Google Maps · rota completa
@@ -551,8 +547,6 @@ export function RotaPanel() {
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <a
                     href={wazeLink(item.endereco)}
-                    target="_blank"
-                    rel="noreferrer"
                     className="inline-flex h-11 items-center justify-center gap-1 rounded-full bg-signal text-sm font-semibold text-signal-ink"
                   >
                     <Navigation className="h-4 w-4" />
@@ -560,8 +554,6 @@ export function RotaPanel() {
                   </a>
                   <a
                     href={googleStopLink(item.endereco)}
-                    target="_blank"
-                    rel="noreferrer"
                     className="inline-flex h-11 items-center justify-center rounded-full border border-line text-sm font-semibold"
                   >
                     Google Maps
@@ -589,8 +581,6 @@ export function RotaPanel() {
       {restantes.length > 0 ? (
         <a
           href={googleRouteLink(origin.endereco, restantes)}
-          target="_blank"
-          rel="noreferrer"
           className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-full border border-line text-sm font-semibold"
         >
           Rota inteira no Google Maps
