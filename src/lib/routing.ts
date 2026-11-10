@@ -84,7 +84,7 @@ async function tomtomDrivingRoute(stops: LatLng[]): Promise<DrivingRoute | null>
     instructionsType: "text",
     language: "pt-BR",
     routeType: "fastest",
-    traffic: "false",
+    traffic: "true",
     travelMode: "motorcycle",
   });
   const url = `https://api.tomtom.com/routing/1/calculateRoute/${locations}/json?${params.toString()}`;
