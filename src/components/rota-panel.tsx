@@ -31,6 +31,7 @@ export function RotaPanel() {
   const now = useNow(Boolean(run && run.status === "ativa"));
   const [order, setOrder] = useState<string[]>([]);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [ending, setEnding] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(() => {
     try { return localStorage.getItem("circuito-voice-guidance") !== "off"; } catch { return true; }
@@ -393,6 +394,26 @@ export function RotaPanel() {
       : gpsMeta.speed != null
         ? `${Math.round(gpsMeta.speed)}`
         : "—";
+  const currentPosition = gaze ?? last ?? origin;
+  const routeLine = useDelivery((state) => state.routeLine);
+  const remainingKm = useMemo(() => {
+    if (routeLine.length >= 2) {
+      let nearest = 0;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      routeLine.forEach((point, index) => {
+        const distance = haversine(currentPosition, point);
+        if (distance < nearestDistance) { nearestDistance = distance; nearest = index; }
+      });
+      let km = nearestDistance;
+      for (let index = nearest; index < routeLine.length - 1; index++) km += haversine(routeLine[index], routeLine[index + 1]);
+      return km;
+    }
+    const target = upcoming ?? (destinationOnly ? run.destino : base);
+    return target ? haversine(currentPosition, target) : 0;
+  }, [routeLine, currentPosition.lat, currentPosition.lng, upcoming?.id, destinationOnly, run.destino?.lat, run.destino?.lng, base?.lat, base?.lng]);
+  const speedKmh = run.modo === "gps" && gpsMeta.speed != null && gpsMeta.speed >= 0 ? gpsMeta.speed * 3.6 : null;
+  const etaMinutes = speedKmh != null && speedKmh >= 3 ? Math.ceil((remainingKm / speedKmh) * 60) : null;
+  const etaLabel = etaMinutes == null ? "—" : etaMinutes < 60 ? etaMinutes + " min" : Math.floor(etaMinutes / 60) + "h " + String(etaMinutes % 60).padStart(2, "0") + "min";
 
   return (
     <div className="scroll h-full min-h-0 overflow-y-auto px-4 py-4">
@@ -417,6 +438,11 @@ export function RotaPanel() {
             {mapExpanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
           </button>
         </div>
+        <dl className="grid grid-cols-3 gap-2 border-t border-line px-3 py-3">
+          <Stat label="VELOCIDADE" value={speedKmh == null ? "—" : Math.round(speedKmh) + " km/h"} />
+          <Stat label="TEMPO RESTANTE" value={etaLabel} />
+          <Stat label="KM RESTANTE" value={kmLabel(remainingKm)} />
+        </dl>
         <div className={cn("relative w-full", mapExpanded ? "min-h-0 flex-1" : "h-[68vh] min-h-[520px]")}>
           <MapView navigating destinationLabel={upcoming ? `Comanda ${upcoming.numero} · ${upcoming.endereco}` : destinationOnly ? run.destino?.label : "Voltando para a base"} instruction={routeLoading ? "Calculando a próxima manobra…" : routeCue?.text ?? (upcoming ? `Siga até ${upcoming.endereco}` : "Siga em frente até a base")} instructionMeters={routeCue?.meters ?? null} audioEnabled={voiceEnabled} onToggleAudio={() => setVoiceEnabled((value) => !value)} expanded={mapExpanded} onToggleExpanded={() => setMapExpanded((value) => !value)} />
         </div>
@@ -644,8 +670,30 @@ export function RotaPanel() {
             <GhostButton onClick={() => setConfirmEnd(false)}>Voltar</GhostButton>
             <button
               type="button"
-              onClick={async () => {
-                const stored = JSON.parse(localStorage.getItem("circuito-live-share") || "null") as { token?: string; corridaId?: string } | null;
+              disabled={ending}
+              onClick={() => {
+                if (ending) return;
+                setEnding(true);
+                const stored = (() => {
+                  try { return JSON.parse(localStorage.getItem("circuito-live-share") || "null") as { token?: string; corridaId?: string } | null; }
+                  catch { return null; }
+                })();
+                const permanentToken = (() => {
+                  try { return localStorage.getItem("circuito-permanent-share-token"); }
+                  catch { return null; }
+                })();
+                useDelivery.getState().encerrar();
+                setConfirmEnd(false);
+                setEnding(false);
+                if (stored?.corridaId === run.id && stored.token) {
+                  void stopLiveShare(stored.token).catch((error) => console.warn("[Circuito] Falha ao encerrar link", error));
+                  try { localStorage.removeItem("circuito-live-share"); } catch { /* opcional */ }
+                  setShareLink("");
+                }
+                if (permanentToken) {
+                  void publishPermanentLiveShare({ active: false, status: "idle", updated_at: new Date().toISOString() }).catch((error) => console.warn("[Circuito] Falha ao atualizar link permanente", error));
+                }
+              }}
                 if (stored?.corridaId === run.id && stored.token) {
                   try {
                     await stopLiveShare(stored.token);
