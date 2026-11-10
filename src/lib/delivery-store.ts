@@ -211,6 +211,7 @@ type Store = Persisted & {
   startDestinationRun: (destination: { label: string; lat: number; lng: number }) => void;
   routeLine: LatLng[];
   routeKm: number | null;
+  routeDurationSeconds: number | null;
   routeKind: "rua" | "reta" | null;
   routeCue: { meters: number; text: string; modifier: string } | null;
   routeRev: number;
@@ -252,6 +253,7 @@ type Store = Persisted & {
   setRoute: (route: {
     line: LatLng[];
     km: number | null;
+    durationSeconds?: number | null;
     kind: "rua" | "reta" | null;
     cue?: { meters: number; text: string; modifier: string } | null;
   }) => void;
@@ -307,6 +309,7 @@ export const useDelivery = create<Store>()(
       },
       routeLine: [],
       routeKm: null,
+      routeDurationSeconds: null,
       routeKind: null,
       routeCue: null,
       routeRev: 0,
@@ -625,6 +628,7 @@ export const useDelivery = create<Store>()(
         set({
           routeLine: route.line,
           routeKm: route.km,
+          routeDurationSeconds: route.durationSeconds ?? null,
           routeKind: route.kind,
           routeCue: route.cue ?? null,
           routeRev: get().routeRev + 1,
