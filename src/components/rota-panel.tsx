@@ -682,37 +682,22 @@ export function RotaPanel() {
                   try { return localStorage.getItem("circuito-permanent-share-token"); }
                   catch { return null; }
                 })();
+                // Encerra localmente sem aguardar a rede para não travar o registro dos quilômetros.
                 useDelivery.getState().encerrar();
                 setConfirmEnd(false);
                 setEnding(false);
                 if (stored?.corridaId === run.id && stored.token) {
                   void stopLiveShare(stored.token).catch((error) => console.warn("[Circuito] Falha ao encerrar link", error));
-                  try { localStorage.removeItem("circuito-live-share"); } catch { /* opcional */ }
+                  try { localStorage.removeItem("circuito-live-share"); } catch { /* armazenamento opcional */ }
                   setShareLink("");
                 }
                 if (permanentToken) {
                   void publishPermanentLiveShare({ active: false, status: "idle", updated_at: new Date().toISOString() }).catch((error) => console.warn("[Circuito] Falha ao atualizar link permanente", error));
                 }
               }}
-                if (stored?.corridaId === run.id && stored.token) {
-                  try {
-                    await stopLiveShare(stored.token);
-                  } catch (error) {
-                    console.warn("[Circuito] Não foi possível encerrar o link no servidor", error);
-                  }
-                  localStorage.removeItem("circuito-live-share");
-                  setShareLink("");
-                }
-                if (localStorage.getItem("circuito-permanent-share-token")) {
-                  await publishPermanentLiveShare({ active: false, status: "idle", updated_at: new Date().toISOString() }).catch((error) => {
-                    console.warn("[Circuito] Não foi possível atualizar o link permanente", error);
-                  });
-                }
-                useDelivery.getState().encerrar();
-              }}
               className="inline-flex h-12 items-center justify-center rounded-full bg-danger px-4 text-sm font-semibold text-ink"
             >
-              Confirmar
+              {ending ? "Finalizando…" : "Confirmar"}
             </button>
           </div>
         ) : (
