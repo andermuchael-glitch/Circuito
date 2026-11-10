@@ -373,7 +373,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     const timer = window.setTimeout(() => {
       setSearching(true);
       setSearchMessage("");
-      void searchNominatim(query.trim(), useDelivery.getState().gaze).then((results) => {
+      void searchNominatim(query.trim(), useDelivery.getState().gaze ?? useDelivery.getState().base).then((results) => {
         if (controller.signal.aborted) return;
         setHits(results);
         setSearchMessage(results.length ? "" : "Nenhum endereço encontrado. Tente incluir rua, número e cidade.");
@@ -403,8 +403,15 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     const pin = document.createElement("div");
     pin.className = "circuito-search-pin";
     pin.innerHTML = '<span></span>';
-    searchMarkerRef.current = new maplibregl.Marker({ element: pin, anchor: "bottom" })
+    searchMarkerRef.current = new maplibregl.Marker({ element: pin, anchor: "bottom", draggable: true })
       .setLngLat([hit.lng, hit.lat]).addTo(map);
+    searchMarkerRef.current.on("dragend", () => {
+      const point = searchMarkerRef.current?.getLngLat();
+      if (!point) return;
+      const corrected = { label: `${hit.label} · ponto ajustado`, lat: point.lat, lng: point.lng };
+      setSelectedLabel(corrected.label);
+      useDelivery.getState().setSearchDestination(corrected);
+    });
     map.easeTo({ center: [hit.lng, hit.lat], zoom: 17.2, pitch: 0, bearing: 0, duration: 900 });
   }
 
