@@ -348,7 +348,7 @@ export const useDelivery = create<Store>()(
                 picking: false,
                 lat: pin.lat,
                 lng: pin.lng,
-                endereco: "Ponto marcado no mapa",
+                endereco: draft.endereco.trim() || "Ponto marcado no mapa",
               }
             : null,
         });
