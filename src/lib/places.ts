@@ -73,18 +73,18 @@ export function houseNumber(query: string): string | null {
 }
 
 function cityOf(query: string) {
-  if (/itaja[ií]/i.test(query)) return "Itajaí";
-  if (/balne[aá]rio/i.test(query)) return "Balneário Camboriú";
-  if (/cambori[uú]/i.test(query)) return "Camboriú";
-  return "Balneário Camboriú";
+  if (/itaj[aíi]/i.test(query)) return "Itajaí";
+  if (/balne[aá]rio\\s+cambori[uú]/i.test(query)) return "Balneário Camboriú";
+  if (/\\bcambori[uú]\\b/i.test(query)) return "Camboriú";
+  return null;
 }
 
+const DEFAULT_CITY = "Balneário Camboriú, Santa Catarina";
+
 export function addressWithNumber(typed: string, found: string) {
-  const num = houseNumber(typed);
-  const road = (found.split(",")[0] || typed).trim();
-  const city = cityOf(`${typed} ${found}`);
-  if (!num) return typed.trim() || `${road}, ${city}`;
-  return `${road}, ${num}, ${city}`;
+  // Nunca invente/insira o número digitado em uma coordenada que não o confirmou.
+  // O rótulo exibido deve ser o endereço efetivamente retornado pelo geocodificador.
+  return found.trim() || typed.trim();
 }
 
 export function searchPlaces(query: string, near?: LatLng | null) {
@@ -94,178 +94,169 @@ export function searchPlaces(query: string, near?: LatLng | null) {
   return pool.filter((item) => fold(`${item.endereco} ${item.bairro}`).includes(needle)).slice(0, 6);
 }
 
-const CITY = "Balneário Camboriú, Santa Catarina";
-
 function expandQueries(query: string) {
-  const q = query.trim().replace(/\s+/g, " ");
-  const out = [q];
-  const hasCity = /cambori[uú]|itaja|camboriu|santa catarina/i.test(q);
-  if (/rua\s+araquari/i.test(q) && /balne[aá]rio/i.test(q)) {
-    out.push(`${q}, Municípios, Balneário Camboriú, SC, 88337-480`);
-  }
-  if (!hasCity) out.push(`${q}, ${CITY}`);
-  const house = q.match(/^(.*\D)[,\s]+(\d{1,5})$/);
+  const q = query.trim().replace(/\\s+/g, " ");
+  const city = cityOf(q);
+  const suffix = city ? "" : `, ${DEFAULT_CITY}`;
+  const out = [q, `${q}${suffix}`];
+  const house = q.match(/^(.*\\D)[,\\s]+(\\d{1,5})$/);
   if (house) {
     const street = house[1].trim();
     const num = house[2];
-    out.push(`${num} ${street}, ${CITY}`);
-    out.push(`${street} ${num}, ${CITY}`);
+    out.push(`${num} ${street}${suffix}`);
+    out.push(`${street} ${num}${suffix}`);
   }
   return [...new Set(out)];
 }
 
-async function fetchNominatim(query: string, near?: LatLng | null) {
+type GeoHit = { label: string; lat: number; lng: number; city: string; number: string };
+
+function validCandidate(item: GeoHit, query: string, near?: LatLng | null) {
+  if (!Number.isFinite(item.lat) || !Number.isFinite(item.lng) || Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180) return false;
+  const requestedNumber = houseNumber(query);
+  // Se o usuário digitou número, só aceitamos resultado que confirme exatamente esse número.
+  if (requestedNumber && item.number !== requestedNumber) return false;
+  const requestedCity = cityOf(query);
+  if (requestedCity && item.city && fold(item.city) !== fold(requestedCity)) return false;
+  if (!requestedCity && item.city && /balne[aá]rio/i.test(DEFAULT_CITY) && !/balne[aá]rio cambori[uú]/i.test(item.city)) return false;
+  // Evita resultados muito distantes da referência local, sem substituir uma cidade explicitamente digitada.
+  if (near && !requestedCity && haversine(near, item) > 60) return false;
+  return true;
+}
+
+async function fetchNominatim(query: string, near?: LatLng | null): Promise<GeoHit[]> {
   const params = new URLSearchParams({
-    format: "jsonv2",
-    limit: "8",
-    countrycodes: "br",
-    addressdetails: "1",
+    format: "jsonv2", limit: "8", countrycodes: "br", addressdetails: "1",
     q: query,
   });
   if (near) {
-    // Keep address candidates inside the local delivery area, not neighboring cities.
     const span = 0.08;
     params.set("viewbox", `${near.lng - span},${near.lat + span},${near.lng + span},${near.lat - span}`);
     params.set("bounded", "0");
   }
-  const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
-  const response = await fetch(url, {
+  const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
     headers: { Accept: "application/json", "Accept-Language": "pt-BR" },
   });
   if (response.status === 429) throw new Error("busca ocupada");
   if (!response.ok) throw new Error("não foi possível buscar o endereço");
-  const data = (await response.json()) as { lat: string; lon: string; display_name: string; address?: { city?: string; town?: string; municipality?: string; county?: string; house_number?: string } }[];
+  const data = await response.json() as Array<{
+    lat: string; lon: string; display_name: string;
+    address?: { city?: string; town?: string; municipality?: string; county?: string; house_number?: string };
+  }>;
   return data.map((item) => ({
     label: item.display_name.split(",").slice(0, 5).join(",").trim(),
-    lat: Number(item.lat),
-    lng: Number(item.lon),
+    lat: Number(item.lat), lng: Number(item.lon),
     city: item.address?.city ?? item.address?.town ?? item.address?.municipality ?? item.address?.county ?? "",
     number: item.address?.house_number ?? "",
   }));
 }
 
-
-async function fetchPhoton(query: string, near?: LatLng | null) {
+async function fetchPhoton(query: string, near?: LatLng | null): Promise<GeoHit[]> {
   const params = new URLSearchParams({ q: query, lang: "pt", limit: "5" });
-  if (near) {
-    params.set("lat", String(near.lat));
-    params.set("lon", String(near.lng));
-  }
+  if (near) { params.set("lat", String(near.lat)); params.set("lon", String(near.lng)); }
   const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`, {
     headers: { Accept: "application/json", "Accept-Language": "pt-BR" },
   });
   if (!response.ok) throw new Error("não foi possível buscar o endereço");
-  const data = (await response.json()) as {
-    features?: {
+  const data = await response.json() as {
+    features?: Array<{
       geometry?: { coordinates?: unknown };
       properties?: { name?: string; street?: string; housenumber?: string; city?: string; district?: string; state?: string };
-    }[];
+    }>;
   };
   return (data.features ?? []).flatMap((feature) => {
     const coordinates = feature.geometry?.coordinates;
-    if (
-      !Array.isArray(coordinates) ||
-      coordinates.length < 2 ||
-      !Number.isFinite(coordinates[0]) ||
-      !Number.isFinite(coordinates[1])
-    ) return [];
+    if (!Array.isArray(coordinates) || coordinates.length < 2 ||
+      !Number.isFinite(coordinates[0]) || !Number.isFinite(coordinates[1])) return [];
     const [lng, lat] = coordinates as [number, number];
-    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return [];
     const props = feature.properties ?? {};
+    const street = props.street ?? props.name;
     const label = [
-      [props.street ?? props.name, props.housenumber].filter(Boolean).join(", "),
-      props.city,
-      props.state,
+      [street, props.housenumber].filter(Boolean).join(", "),
+      props.district, props.city, props.state,
     ].filter(Boolean).join(", ");
     if (!label) return [];
     return [{ label, lat, lng, city: props.city ?? props.district ?? "", number: props.housenumber ?? "" }];
   });
 }
 
-type TomTomSearchResponse = { results?: Array<{ position?: { lat?: number; lon?: number }; address?: { freeformAddress?: string; streetName?: string; streetNumber?: string; municipality?: string; municipalitySubdivision?: string; countrySubdivision?: string } }> };
+type TomTomSearchResponse = {
+  results?: Array<{
+    position?: { lat?: number; lon?: number };
+    address?: {
+      freeformAddress?: string; streetName?: string; streetNumber?: string;
+      municipality?: string; municipalitySubdivision?: string; countrySubdivision?: string;
+    };
+  }>;
+};
 
-async function searchTomTom(query: string, near?: LatLng | null) {
+async function searchTomTom(query: string, near?: LatLng | null): Promise<GeoHit[]> {
   const key = import.meta.env.VITE_TOMTOM_API_KEY as string | undefined;
   if (!key) return [];
-  const params = new URLSearchParams({ key, countrySet: "BR", limit: "8", language: "pt-BR", typeahead: "true" });
+  const params = new URLSearchParams({ key, countrySet: "BR", limit: "8", language: "pt-BR", typeahead: "false" });
   if (near) {
-    params.set("lat", String(near.lat));
-    params.set("lon", String(near.lng));
-    params.set("radius", "50000");
+    params.set("lat", String(near.lat)); params.set("lon", String(near.lng)); params.set("radius", "50000");
   }
   const url = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(query)}.json?${params.toString()}`;
   const response = await fetch(url);
   if (!response.ok) return [];
   const data = await response.json() as TomTomSearchResponse;
   return (data.results ?? []).flatMap((item) => {
-    const lat = item.position?.lat;
-    const lng = item.position?.lon;
-    if (typeof lat !== "number" || typeof lng !== "number") return [];
-    const a = item.address;
-    const label = a?.freeformAddress ?? [a?.streetName, a?.streetNumber, a?.municipalitySubdivision, a?.municipality, a?.countrySubdivision].filter(Boolean).join(", ");
-    return label ? [{ lat, lng, label, city: a?.municipality ?? "", number: a?.streetNumber ?? "" }] : [];
+    const lat = item.position?.lat, lng = item.position?.lon, a = item.address;
+    if (typeof lat !== "number" || typeof lng !== "number" || !a) return [];
+    const label = a.freeformAddress ?? [a.streetName, a.streetNumber, a.municipalitySubdivision, a.municipality, a.countrySubdivision].filter(Boolean).join(", ");
+    return label ? [{ lat, lng, label, city: a.municipality ?? "", number: a.streetNumber ?? "" }] : [];
   });
 }
 
 export async function searchNominatim(query: string, near?: LatLng | null) {
+  const trimmed = query.trim();
+  if (trimmed.length < 3) return [];
   const seen = new Set<string>();
   const hits: { label: string; lat: number; lng: number }[] = [];
-  const requestedNumber = houseNumber(query);
+  const attempts = expandQueries(trimmed);
 
-  // TomTom is the primary geocoder; OSM and Photon remain as fallbacks.
-  try {
-    const tomtom = await searchTomTom(`${query}, ${CITY}`, near);
-    for (const item of tomtom) {
-      if (near && haversine(near, item) > 60) continue;
-      const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      hits.push({ lat: item.lat, lng: item.lng, label: addressWithNumber(query, item.label) });
-    }
-  } catch {
-    // Fall through to the open geocoders.
-  }
-  if (hits.length) return hits.slice(0, 5);
-
-  for (const attempt of expandQueries(query)) {
+  // Consulta todos os provedores e valida os dados estruturados antes de mostrar opções.
+  // Não retorna cegamente o primeiro resultado do TomTom.
+  for (const attempt of attempts) {
     try {
-      const batch = await fetchNominatim(attempt, near);
+      const batch = await searchTomTom(attempt, near);
       for (const item of batch) {
-        if (!Number.isFinite(item.lat) || !Number.isFinite(item.lng)) continue;
-        if (requestedNumber && item.number && item.number !== requestedNumber) continue;
-        if (/balne[aá]rio/i.test(query) && item.city && !/balne[aá]rio cambori[uú]/i.test(item.city)) continue;
-        if (near && haversine(near, item) > 60) continue;
-        const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
+        if (!validCandidate(item, trimmed, near)) continue;
+        const key = `${item.lat.toFixed(5)},${item.lng.toFixed(5)}`;
         if (seen.has(key)) continue;
-        seen.add(key);
-        hits.push({ lat: item.lat, lng: item.lng, label: addressWithNumber(query, item.label) });
+        seen.add(key); hits.push({ lat: item.lat, lng: item.lng, label: item.label });
       }
-    } catch {
-      // Continue with the next spelling/city variant and use Photon below
-      // if Nominatim is temporarily rate-limited or unavailable.
-    }
+    } catch { /* tenta os provedores alternativos */ }
     if (hits.length >= 5) break;
   }
 
-  if (!hits.length) {
-    for (const attempt of expandQueries(query)) {
-      try {
-        const batch = await fetchPhoton(attempt, near);
-        for (const item of batch) {
-          if (requestedNumber && item.number && item.number !== requestedNumber) continue;
-          if (/balne[aá]rio/i.test(query) && item.city && !/balne[aá]rio cambori[uú]/i.test(item.city)) continue;
-          if (near && haversine(near, item) > 12) continue;
-          const key = `${item.lat.toFixed(4)},${item.lng.toFixed(4)}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          hits.push({ lat: item.lat, lng: item.lng, label: addressWithNumber(query, item.label) });
-        }
-      } catch {
-        // The form will offer manual map pin placement if both services fail.
+  for (const attempt of attempts) {
+    if (hits.length >= 5) break;
+    try {
+      const batch = await fetchNominatim(attempt, near);
+      for (const item of batch) {
+        if (!validCandidate(item, trimmed, near)) continue;
+        const key = `${item.lat.toFixed(5)},${item.lng.toFixed(5)}`;
+        if (seen.has(key)) continue;
+        seen.add(key); hits.push({ lat: item.lat, lng: item.lng, label: item.label });
       }
-      if (hits.length >= 5) break;
-    }
+    } catch { /* Nominatim pode limitar consultas; continua para Photon */ }
   }
+
+  for (const attempt of attempts) {
+    if (hits.length >= 5) break;
+    try {
+      const batch = await fetchPhoton(attempt, near);
+      for (const item of batch) {
+        if (!validCandidate(item, trimmed, near)) continue;
+        const key = `${item.lat.toFixed(5)},${item.lng.toFixed(5)}`;
+        if (seen.has(key)) continue;
+        seen.add(key); hits.push({ lat: item.lat, lng: item.lng, label: item.label });
+      }
+    } catch { /* a seleção manual do ponto continua disponível */ }
+  }
+
   return hits.slice(0, 5);
 }
 
