@@ -61,6 +61,26 @@ export function LandingPage({ onEnter, onSignup }: LandingPageProps) {
         </div>
       </header>
 
+      {/* Demo video */}
+      <section className="mx-auto max-w-4xl px-5 py-12 sm:px-8 sm:py-16">
+        <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/40 shadow-2xl">
+          <video
+            className="w-full aspect-video object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster="/og.jpg"
+          >
+            <source src="/demo.mp4" type="video/mp4" />
+            Seu navegador não suporta vídeo.
+          </video>
+        </div>
+        <p className="mt-4 text-center text-sm text-white/50">
+          Veja o Route377 em ação: rotas, comandas e localização ao vivo.
+        </p>
+      </section>
+
       {/* Features */}
       <section className="mx-auto max-w-5xl px-5 py-16 sm:px-8 sm:py-24">
         <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Tudo o que o entregador precisa</h2>
