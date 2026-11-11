@@ -22,10 +22,10 @@ const save = (s: Session | null) => s ? localStorage.setItem(STORE, JSON.stringi
 function load(): Session | null { try { const s = localStorage.getItem(STORE); return s ? JSON.parse(s) as Session : null; } catch { return null; } }
 const expiry = (s: Session & { expires_in?: number }) => ({ ...s, expires_at: Math.floor(Date.now() / 1000) + (s.expires_in || 3600) });
 
-export function SupabaseAuthGate() {
+export function SupabaseAuthGate({ initialMode = "login" }: { initialMode?: Mode } = {}) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
