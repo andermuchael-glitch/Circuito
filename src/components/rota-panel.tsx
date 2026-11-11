@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Maximize2, Minimize2, Navigation, Play, Square } from "lucide-react";
-import { GhostButton, PrimaryButton, payName } from "@/components/bits";
+import { GhostButton, PrimaryButton } from "@/components/bits";
+import { payName } from "@/lib/labels";
 import { comPin, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
 import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, waLink, wazeLink } from "@/lib/format";
 import { haversine, optimizeOrder, straightKm } from "@/lib/geo";

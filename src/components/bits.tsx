@@ -1,19 +1,7 @@
 import type { ReactNode } from "react";
 import type { Pagamento, Status } from "@/lib/delivery-store";
 import { cn } from "@/lib/cn";
-
-const statusCopy: Record<Status, string> = {
-  aberta: "Na fila",
-  rota: "Em rota",
-  entregue: "Entregue",
-  cancelada: "Cancelada",
-};
-
-const payCopy: Record<Pagamento, string> = {
-  pix: "Pix",
-  dinheiro: "Dinheiro",
-  cartao: "Cartão",
-};
+import { statusCopy, payCopy } from "@/lib/labels";
 
 export function StatusPill({ status }: { status: Status }) {
   return (
@@ -33,10 +21,6 @@ export function StatusPill({ status }: { status: Status }) {
 
 export function PayLabel({ pagamento }: { pagamento: Pagamento }) {
   return <span>{payCopy[pagamento]}</span>;
-}
-
-export function payName(pagamento: Pagamento) {
-  return payCopy[pagamento];
 }
 
 export function IconButton({
