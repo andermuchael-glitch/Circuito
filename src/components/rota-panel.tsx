@@ -454,7 +454,7 @@ export function RotaPanel() {
         </div>
       </section>
 
-      <details className="mt-3 rounded-2xl border border-line bg-raised p-2">
+      <details open className="mt-3 rounded-2xl border border-line bg-raised p-2">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-2 text-sm font-semibold">
           <span className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-full bg-signal/15 text-signal">☰</span> Mais informações</span>
           <span className="text-xs font-medium text-muted">Links · Comandas · Paradas</span>
@@ -495,7 +495,7 @@ export function RotaPanel() {
     )}
       </details>
 
-      <details className="mt-2 rounded-2xl border border-signal/50 bg-raised p-3">
+      <details open className="mt-2 rounded-2xl border border-signal/50 bg-raised p-3">
         <summary className="cursor-pointer list-none text-sm font-semibold">Link permanente do estabelecimento</summary>
         <p className="mt-1 text-xs text-muted">Compartilhe uma única vez. O mesmo link acompanha todas as corridas e muda automaticamente para a próxima entrega ou volta à base.</p>
         {permanentLink ? (
