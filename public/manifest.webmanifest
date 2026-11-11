@@ -1,21 +1,21 @@
 {
   "name": "Route377",
   "short_name": "Route377",
-  "id": "/Circuito/",
-  "start_url": "/Circuito/",
-  "scope": "/Circuito/",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#07110c",
   "theme_color": "#07110c",
   "icons": [
     {
-      "src": "/Circuito/icons/icon-192.png",
+      "src": "./icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/Circuito/icons/icon-512.png",
+      "src": "./icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
