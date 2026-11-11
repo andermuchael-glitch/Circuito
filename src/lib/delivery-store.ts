@@ -106,6 +106,15 @@ function replaceCorrida(list: Corrida[], next: Corrida) {
   return list.map((item) => (item.id === next.id ? next : item));
 }
 
+// Mantém início e fim do trajeto, reduzindo o tamanho do histórico salvo no aparelho.
+function compactTrack(points: TrackPoint[], maxPoints = 300): TrackPoint[] {
+  if (points.length <= maxPoints) return points;
+  const last = points.length - 1;
+  return Array.from({ length: maxPoints }, (_, index) =>
+    points[Math.round((index * last) / (maxPoints - 1))],
+  );
+}
+
 export type BasePin = { lat: number; lng: number; endereco: string };
 
 export const BASE_HOME: BasePin = {
@@ -508,6 +517,7 @@ export const useDelivery = create<Store>()(
           gpsError: null,
           corridas: replaceCorrida(get().corridas, {
             ...ativa,
+            points: compactTrack(ativa.points, 300),
             status: "encerrada",
             endedAt: Date.now(),
             modo: "parado",
@@ -642,7 +652,12 @@ export const useDelivery = create<Store>()(
       skipHydration: true,
       partialize: (state) => ({
         comandas: state.comandas,
-        corridas: state.corridas,
+        // Evita regravar milhares de coordenadas em cada atualização do GPS.
+        // O valor de km permanece intacto; apenas a trilha visual é resumida.
+        corridas: state.corridas.map((item) => ({
+          ...item,
+          points: compactTrack(item.points, item.status === "ativa" ? 500 : 240),
+        })),
         ativaId: state.ativaId,
         tab: state.tab,
         seq: state.seq,
