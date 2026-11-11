@@ -3,7 +3,7 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "Circuito";
+const APP_NAME = "Route377";
 
 const base = import.meta.env.BASE_URL;
 
@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       { title: APP_NAME },
       {
         name: "description",
-        content: "GPS das corridas de delivery: comandas, rotas, localização ao vivo e km rodados.",
+        content: "Route377: GPS inteligente para corridas e entregas, com comandas, rotas, localização ao vivo e controle de quilômetros.",
       },
       { name: "theme-color", content: "#07110c" },
       { name: "mobile-web-app-capable", content: "yes" },
