@@ -237,7 +237,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       searchMarkerRef.current = null;
       setReady(false);
     };
-  }, [mapRetry, darkStyle]);
+  }, [mapRetry, darkStyle, trafficKey, trafficEnabled]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -353,7 +353,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         });
       }
     }
-  }, [ready, tick, tab]);
+  }, [ready, tick, tab, navigating]);
 
   useEffect(() => {
     const map = mapRef.current;

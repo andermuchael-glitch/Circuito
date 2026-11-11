@@ -62,7 +62,7 @@ export function RotaPanel() {
     }
     const target = run.destino ?? nextStop(run, comandas) ?? base;
     return target ? haversine(currentRunPosition, target) : 0;
-  }, [run?.id, run?.destino?.lat, run?.destino?.lng, run?.feitas.join(","), comandas, routeLine, currentRunPosition.lat, currentRunPosition.lng, base?.lat, base?.lng]);
+  }, [run, comandas, routeLine, currentRunPosition, base]);
 
 
   const abertas = comandas.filter(comPin).filter((item) => item.status === "aberta");
@@ -97,22 +97,13 @@ export function RotaPanel() {
     if (!selected.length) return [];
     return [origin, ...selected, base ?? origin];
   }, [
-    run?.id,
-    run?.destino?.lat,
-    run?.destino?.lng,
-    searchDestination?.lat,
-    searchDestination?.lng,
-    run?.ordem.join(","),
-    run?.feitas.join(","),
-    run?.points.length,
+    run,
+    searchDestination,
     comandas,
-    gaze?.lat,
-    gaze?.lng,
-    origin.lat,
-    origin.lng,
-    base?.lat,
-    base?.lng,
-    selected.map((item) => item.id).join(","),
+    gaze,
+    origin,
+    base,
+    selected,
   ]);
 
   const routeRequestKey = routeStops.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(":");
@@ -157,7 +148,7 @@ export function RotaPanel() {
     })();
 
     return () => controller.abort();
-  }, [routeRequestKey]);
+  }, [routeRequestKey, routeStops]);
   useEffect(() => {
     if (!run || run.modo !== "gps" || liveStatus !== "ativo" || !routeCue || routeKind !== "rua") return;
     if (!voiceEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -173,7 +164,7 @@ export function RotaPanel() {
     utterance.rate = 0.96;
     utterance.pitch = 1;
     window.speechSynthesis.speak(utterance);
-  }, [run?.id, run?.modo, liveStatus, routeCue?.text, routeCue?.meters, routeKind, voiceEnabled, lastSpokenCue]);
+  }, [run, run?.id, run?.modo, liveStatus, routeCue, routeCue?.text, routeCue?.meters, routeKind, voiceEnabled, lastSpokenCue]);
 
   useEffect(() => {
     try { localStorage.setItem("circuito-voice-guidance", voiceEnabled ? "on" : "off"); } catch { /* preferência opcional */ }

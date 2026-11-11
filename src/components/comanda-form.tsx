@@ -70,7 +70,7 @@ export function ComandaForm() {
       cancel = true;
       window.clearTimeout(timer);
     };
-  }, [endereco, pinned]);
+  }, [endereco, pinned, near]);
 
   if (!draft || draft.picking) return null;
 
