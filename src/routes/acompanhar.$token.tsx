@@ -171,7 +171,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function Message({ children }: { children: string }) {
-  return <p role="status" className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">{children}</p>;
+  return <p role="status" className="rounded-2xl border border-[#3dcc7a]/30 bg-[#3dcc7a]/10 p-4 text-sm text-[#d8ffad]">{children}</p>;
 }
 
 function Finished() {

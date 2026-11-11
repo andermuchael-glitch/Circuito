@@ -9,8 +9,8 @@
   --color-line: #2c4638;
   --color-paper: #e8f3ec;
   --color-muted: #8eae98;
-  --color-signal: #ffb020;
-  --color-signal-ink: #1a1200;
+  --color-signal: #3dcc7a;
+  --color-signal-ink: #07110c;
   --color-go: #3dcc7a;
   --color-danger: #ff5d4a;
   --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
@@ -237,9 +237,9 @@
 .circuito-map-marker-stop.is-next {
   width: 42px;
   height: 42px;
-  border: 3px solid #ffb020;
+  border: 3px solid #3dcc7a;
   background: #07110c;
-  color: #ffb020;
+  color: #3dcc7a;
 }
 .circuito-map-marker-done {
   width: 30px;
@@ -251,8 +251,8 @@
   padding: 5px 7px;
   border-radius: 8px;
   background: #07110c;
-  border-color: #ffb020;
-  color: #ffb020;
+  border-color: #3dcc7a;
+  color: #3dcc7a;
   font-size: 10px;
 }
 .circuito-map-marker-rider {
@@ -322,7 +322,7 @@
 }
 .circuito-map-marker-stop.is-next {
   width: 42px; height: 42px;
-  border: 3px solid #ffb020; background: #07110c; color: #ffb020;
+  border: 3px solid #3dcc7a; background: #07110c; color: #3dcc7a;
 }
 .circuito-map-marker-done {
   width: 30px; height: 30px;
@@ -330,7 +330,7 @@
 }
 .circuito-map-marker-base {
   padding: 5px 7px; border-radius: 8px;
-  background: #07110c; border-color: #ffb020; color: #ffb020;
+  background: #07110c; border-color: #3dcc7a; color: #3dcc7a;
   font-size: 10px;
 }
 .circuito-map-marker-rider {
@@ -341,7 +341,7 @@
 .circuito-map-marker-rider span { display: block; line-height: 1; }
 .circuito-search-pin {
   width: 26px; height: 26px; border: 3px solid white; border-radius: 50% 50% 50% 0;
-  background: #ffb020; transform: rotate(-45deg); box-shadow: 0 3px 12px rgba(0,0,0,.4);
+  background: #3dcc7a; transform: rotate(-45deg); box-shadow: 0 3px 12px rgba(0,0,0,.4);
 }
 .circuito-search-pin span {
   display: block; width: 8px; height: 8px; margin: 6px; border-radius: 50%; background: #102018;
