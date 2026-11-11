@@ -48,6 +48,8 @@ jobs:
           node scripts/finalize-pages.mjs
         env:
           NITRO_PRESET: github_pages
+          ROUTE377_CUSTOM_DOMAIN: "true"
+          VITE_PUBLIC_HOSTNAME: route377.com.br
           VITE_TOMTOM_API_KEY: ${{ secrets.VITE_TOMTOM_API_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
