@@ -17,6 +17,6 @@
         android:strokeColor="#102017"
         android:strokeLineCap="round"
         android:strokeWidth="8" />
-    <circle android:fillColor="#102017" android:centerX="82" android:centerY="30" android:radius="9" />
-    <circle android:fillColor="#102017" android:centerX="26" android:centerY="78" android:radius="9" />
+    <circle android:fillColor="#102017" android:centerX="82" android:centerY="30" android:radius="9dp" />
+    <circle android:fillColor="#102017" android:centerX="26" android:centerY="78" android:radius="9dp" />
 </vector>
