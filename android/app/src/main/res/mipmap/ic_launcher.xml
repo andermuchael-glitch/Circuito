@@ -6,6 +6,6 @@
     <path android:fillColor="#00000000" android:pathData="M34,38 L74,38 Q82,38 82,46 L82,62 Q82,70 74,70 L34,70 Q26,70 26,78 M74,38 Q82,38 82,30"
         android:strokeColor="#102017" android:strokeWidth="8"
         android:strokeLineCap="round" android:strokeLineJoin="round" />
-    <circle android:fillColor="#102017" android:centerX="82" android:centerY="30" android:radius="9" />
-    <circle android:fillColor="#102017" android:centerX="26" android:centerY="78" android:radius="9" />
+    <circle android:fillColor="#102017" android:centerX="82" android:centerY="30" android:radius="9dp" />
+    <circle android:fillColor="#102017" android:centerX="26" android:centerY="78" android:radius="9dp" />
 </vector>
