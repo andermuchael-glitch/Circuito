@@ -232,7 +232,7 @@ export function KmPanel() {
       ) : null}
       {visualizacao !== "corridas" ? (
         <>
-          <h3 className="mt-5 text-sm font-semibold text-muted">COMANDAS ENTREGUES ({comandasDoPeriodo.length})</h3>
+          <h3 className="mt-5 text-sm font-semibold text-muted">COMANDAS DO PERÍODO ({comandasDoPeriodo.length})</h3>
           <ul className="mt-2 space-y-2">
             {comandasDoPeriodo.length === 0 ? (
               <li className="rounded-2xl border border-dashed border-line px-3 py-6 text-sm text-muted">
