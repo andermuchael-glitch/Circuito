@@ -27,8 +27,8 @@ export function App() {
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    if (!window.location.pathname.startsWith("/Circuito")) return;
-    void navigator.serviceWorker.register("/Circuito/sw.js", { scope: "/Circuito/" });
+    const base = import.meta.env.BASE_URL;
+    void navigator.serviceWorker.register(`${base}sw.js`, { scope: base });
   }, []);
 
   return (
