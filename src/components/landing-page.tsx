@@ -113,7 +113,7 @@ export function LandingPage({ onEnter, onSignup }: LandingPageProps) {
             {
               icon: Share2,
               title: "Compartilhamento",
-              desc: "Link permanente do estabelecimento ou link temporário da corrida. Seguro e fácil de enviar.",
+              desc: "Envie um link da corrida para o cliente acompanhar sua posição em tempo real, sem precisar instalar nada.",
             },
             {
               icon: CheckCircle2,
