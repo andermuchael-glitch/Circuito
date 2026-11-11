@@ -13,7 +13,6 @@ import { comPin, corridaAtiva, nextStop, useDelivery } from "@/lib/delivery-stor
 import { bearing, type LatLng } from "@/lib/geo";
 import { startOfToday } from "@/lib/format";
 import { rememberAddressPin, searchNominatim } from "@/lib/places";
-import { cn } from "@/lib/cn";
 
 type SearchHit = { label: string; lat: number; lng: number };
 type MapViewProps = { navigating?: boolean; destinationLabel?: string; instruction?: string; instructionMeters?: number | null; audioEnabled?: boolean; onToggleAudio?: () => void; expanded?: boolean; onToggleExpanded?: () => void };

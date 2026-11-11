@@ -2,8 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { LogOut, UserRound, Route } from "lucide-react";
 import { App } from "@/components/app";
 
-const URL = "https://buvvxwzhqfkberreqbrk.supabase.co";
-const KEY = "sb_publishable_tYL4tG01KbADZievXeOGpg_ExD1fP9c";
+const URL = import.meta.env.VITE_SUPABASE_URL || "https://buvvxwzhqfkberreqbrk.supabase.co";
+const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_tYL4tG01KbADZievXeOGpg_ExD1fP9c";
 const STORE = "circuito-supabase-session-v1";
 type Session = { access_token: string; refresh_token: string; expires_at?: number; user: { id: string; email?: string } };
 type Mode = "login" | "signup" | "recover" | "reset";

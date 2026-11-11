@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpRight, Check, CornerUpLeft, CornerUpRight, Maximize2, Minimize2, Navigation, Play, Square, Volume2, VolumeX } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Maximize2, Minimize2, Navigation, Play, Square } from "lucide-react";
 import { GhostButton, PrimaryButton, payName } from "@/components/bits";
-import { comPin, corridaAtiva, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
+import { comPin, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
 import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, waLink, wazeLink } from "@/lib/format";
 import { haversine, optimizeOrder, straightKm } from "@/lib/geo";
 import { holdScreen } from "@/lib/screen";
@@ -411,12 +411,6 @@ export function RotaPanel() {
     .filter((item): item is string => Boolean(item));
   const last = run.points[run.points.length - 1];
   const dist = upcoming && last ? haversine(last, upcoming) : upcoming ? haversine(origin, upcoming) : 0;
-  const speed =
-    run.modo === "simulacao"
-      ? "SIM"
-      : gpsMeta.speed != null
-        ? `${Math.round(gpsMeta.speed)}`
-        : "—";
   const speedKmh = run.modo === "gps" && gpsMeta.speed != null && gpsMeta.speed >= 0 && gpsMeta.speed <= 180 ? gpsMeta.speed : null;
   const routeEtaMinutes = routeKind === "rua" && routeDurationSeconds != null && routeDurationSeconds > 0
     ? Math.ceil(routeDurationSeconds / 60)
