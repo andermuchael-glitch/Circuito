@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Check, Maximize2, Minimize2, Navigation, Play, Square } from "lucide-react";
 import { GhostButton, PrimaryButton } from "@/components/bits";
 import { payName } from "@/lib/labels";
+
 import { comPin, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
 import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, waLink, wazeLink } from "@/lib/format";
 import { haversine, optimizeOrder, straightKm } from "@/lib/geo";
@@ -11,6 +12,12 @@ import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/cn";
 import { drivingRoute } from "@/lib/routing";
 import { createLiveShare, createPermanentLiveShare, publishPermanentLiveShare, stopLiveShare } from "@/lib/live-sharing";
+
+function trackingUrl(token: string): string {
+  const host = import.meta.env.VITE_PUBLIC_HOSTNAME as string | undefined;
+  const base = host ? `https://${host.replace(/\/$/, "")}/` : window.location.href;
+  return new URL(`acompanhar/${token}`, base).toString();
+}
 
 export function RotaPanel() {
   const comandas = useDelivery((state) => state.comandas);
@@ -42,7 +49,7 @@ export function RotaPanel() {
   const [shareLink, setShareLink] = useState("");
   const [shareBusy, setShareBusy] = useState(false);
   const [permanentLink, setPermanentLink] = useState(() => {
-    try { const token = localStorage.getItem("circuito-permanent-share-token"); return token ? new URL(`acompanhar/${token}`, window.location.href).toString() : ""; } catch { return ""; }
+    try { const token = localStorage.getItem("circuito-permanent-share-token"); return token ? trackingUrl(token) : ""; } catch { return ""; }
   });
   const [permanentBusy, setPermanentBusy] = useState(false);
   const lastSpokenCue = useRef("");
@@ -472,7 +479,7 @@ export function RotaPanel() {
         setShareBusy(true);
         try {
           const share = await createLiveShare(run.id);
-          const url = new URL(`acompanhar/${share.token}`, window.location.href);
+          const url = trackingUrl(share.token);
           const value = { id: share.id, token: share.token, corridaId: run.id };
           localStorage.setItem("circuito-live-share", JSON.stringify(value));
           setShareLink(url.toString());
@@ -500,7 +507,7 @@ export function RotaPanel() {
             try {
               const token = await createPermanentLiveShare();
               localStorage.setItem("circuito-permanent-share-token", token);
-              setPermanentLink(new URL(`acompanhar/${token}`, window.location.href).toString());
+              setPermanentLink(trackingUrl(token));
             } catch (error) {
               window.alert(error instanceof Error ? error.message : "Não foi possível criar o link permanente.");
             } finally { setPermanentBusy(false); }
