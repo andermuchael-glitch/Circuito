@@ -23,7 +23,7 @@ function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") 
   if (kind === "rider") {
     const symbol = document.createElement("span");
     symbol.setAttribute("aria-label", "Direção atual");
-    symbol.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 3 57 53 32 43 7 53 32 3Z" fill="#0b3f91" opacity=".9"/><path d="M32 3 52 48 32 39 12 48 32 3Z" fill="#39a5ff" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/><path d="M32 12 43 40 32 35 21 40 32 12Z" fill="#eaf6ff"/><path d="M32 4v48" stroke="#ffffff" stroke-width="2" opacity=".8"/></svg>';
+    symbol.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 3 57 53 32 43 7 53 32 3Z" fill="#183322" opacity=".95"/><path d="M32 3 52 48 32 39 12 48 32 3Z" fill="#b7f34a" stroke="#102018" stroke-width="3" stroke-linejoin="round"/><path d="M32 12 43 40 32 35 21 40 32 12Z" fill="#102018"/><path d="M32 4v48" stroke="#ffffff" stroke-width="2" opacity=".8"/></svg>';
     el.appendChild(symbol);
   } else {
     el.textContent = label;
@@ -109,27 +109,30 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
 
     const state = useDelivery.getState();
     const initial = state.gaze ?? state.base ?? { lat: -26.9955, lng: -48.6432 };
-    const style = {
-      version: 8 as const,
-      sources: {
-        openstreetmap: {
-          type: "raster" as const,
-          tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-          tileSize: 256,
-          attribution: "© OpenStreetMap contributors",
-          maxzoom: 19,
-        },
-      },
-      layers: [
-        {
-          id: "openstreetmap-base",
-          type: "raster" as const,
-          source: "openstreetmap",
-          minzoom: 0,
-          maxzoom: 22,
-        },
-      ],
-    };
+    const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined;
+    const style = mapboxToken
+      ? "https://api.mapbox.com/styles/v1/mapbox/" + (darkStyle ? "dark-v11" : "light-v11") + "?access_token=" + encodeURIComponent(mapboxToken)
+      : {
+          version: 8 as const,
+          sources: {
+            openstreetmap: {
+              type: "raster" as const,
+              tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+              tileSize: 256,
+              attribution: "© OpenStreetMap contributors",
+              maxzoom: 19,
+            },
+          },
+          layers: [
+            {
+              id: "openstreetmap-base",
+              type: "raster" as const,
+              source: "openstreetmap",
+              minzoom: 0,
+              maxzoom: 22,
+            },
+          ],
+        };
 
     const startMap = async () => {
       try {
@@ -152,6 +155,17 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           if (disposed || !map) return;
           map.setBearing(headingRef.current);
           map.setPitch(28);
+
+          if (mapboxToken) {
+            for (const layer of map.getStyle().layers) {
+              const id = layer.id.toLowerCase();
+              const sourceLayer = "source-layer" in layer ? String(layer["source-layer"] ?? "").toLowerCase() : "";
+              if (layer.type === "background") map.setPaintProperty(layer.id, "background-color", darkStyle ? "#101b16" : "#edf4e9");
+              else if (layer.type === "fill" && /land|landuse|park|grass|wood|national_park/.test(sourceLayer + " " + id)) map.setPaintProperty(layer.id, "fill-color", darkStyle ? "#17271e" : "#dcebd4");
+              else if (layer.type === "fill" && /water/.test(sourceLayer + " " + id)) map.setPaintProperty(layer.id, "fill-color", darkStyle ? "#102b2a" : "#c8e1df");
+              else if (layer.type === "line" && /road|street|transportation/.test(sourceLayer + " " + id)) map.setPaintProperty(layer.id, "line-color", darkStyle ? "#52634f" : "#a8b99e");
+            }
+          }
 
           // Camada visual TomTom: cores sobre as ruas indicam a velocidade
           // relativa ao fluxo livre (verde livre, amarelo lento, vermelho congestionado).
@@ -182,14 +196,14 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
             type: "line",
             source: "circuito-route",
             layout: { "line-cap": "round", "line-join": "round" },
-            paint: { "line-color": "#ffffff", "line-width": 11, "line-opacity": 0.9 },
+            paint: { "line-color": "#102018", "line-width": 12, "line-opacity": 0.88 },
           });
           map.addLayer({
             id: "circuito-route-line",
             type: "line",
             source: "circuito-route",
             layout: { "line-cap": "round", "line-join": "round" },
-            paint: { "line-color": "#1685ff", "line-width": 7, "line-opacity": 1 },
+            paint: { "line-color": "#b7f34a", "line-width": 7, "line-opacity": 1 },
           });
           map.addSource("circuito-route-return", {
             type: "geojson",
@@ -200,7 +214,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
             type: "line",
             source: "circuito-route-return",
             layout: { "line-cap": "round", "line-join": "round" },
-            paint: { "line-color": "#f59e0b", "line-width": 7, "line-opacity": 1, "line-dasharray": [1.5, 1.2] },
+            paint: { "line-color": "#ffb020", "line-width": 7, "line-opacity": 1, "line-dasharray": [1.5, 1.2] },
           });
           setReady(true);
         });
@@ -479,15 +493,15 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       <div ref={hostRef} className="absolute inset-0" />
       {navigating ? (
         <>
-          <div className="absolute left-3 right-16 top-3 z-20 flex items-start gap-2"><div className="min-w-0 flex-1 rounded-2xl border border-white/15 bg-[#071711]/90 px-3 py-2.5 text-white shadow-2xl backdrop-blur-xl"><p className="text-[10px] font-bold tracking-[.16em] text-[#4ade91]">NAVEGANDO PARA</p><p className="truncate text-sm font-semibold">{destinationLabel || "Próxima parada"}</p></div><button type="button" onClick={onToggleExpanded} aria-label={expanded ? "Recolher mapa" : "Expandir mapa"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/15 bg-[#071711]/90 text-white shadow-xl backdrop-blur-xl">{expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}</button></div>
-          <div className="absolute bottom-3 left-3 right-3 z-20 rounded-2xl border border-[#3dcc7a]/70 bg-[#071711]/95 p-3 text-white shadow-2xl backdrop-blur-xl"><div className="flex items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#3dcc7a] text-[#071711]">{instruction?.toLowerCase().includes("esquerda") || instruction?.toLowerCase().includes("left") ? <CornerUpLeft className="h-7 w-7" /> : instruction?.toLowerCase().includes("direita") || instruction?.toLowerCase().includes("right") ? <CornerUpRight className="h-7 w-7" /> : <ArrowUpRight className="h-7 w-7" />}</span><div className="min-w-0 flex-1"><p className="text-[10px] font-bold tracking-[.16em] text-[#9bb5a4]">PRÓXIMA INSTRUÇÃO</p><p className="text-base font-extrabold leading-tight">{instruction || "Calculando caminho pelas ruas…"}</p>{instructionMeters != null ? <p className="mt-1 font-mono text-sm font-bold text-[#3dcc7a]">{instructionMeters >= 1000 ? `${(instructionMeters / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km` : `${Math.max(0, Math.round(instructionMeters))} m`}</p> : null}</div><button type="button" onClick={onToggleAudio} aria-label={audioEnabled ? "Desativar narração" : "Ativar narração"} className="flex min-w-[58px] shrink-0 flex-col items-center gap-1 rounded-xl border border-white/15 px-2 py-2 text-[9px] font-bold text-[#a9c4b3]">{audioEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}{audioEnabled ? "SOM ON" : "SOM OFF"}</button></div></div>
+          <div className="absolute left-3 right-16 top-3 z-20 flex items-start gap-2"><div className="min-w-0 flex-1 rounded-2xl border border-white/15 bg-[#071711]/90 px-3 py-2.5 text-white shadow-2xl backdrop-blur-xl"><p className="text-[10px] font-bold tracking-[.16em] text-[#b7f34a]">NAVEGANDO PARA</p><p className="truncate text-sm font-semibold">{destinationLabel || "Próxima parada"}</p></div><button type="button" onClick={onToggleExpanded} aria-label={expanded ? "Recolher mapa" : "Expandir mapa"} className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/15 bg-[#071711]/90 text-white shadow-xl backdrop-blur-xl">{expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}</button></div>
+          <div className="absolute bottom-3 left-3 right-3 z-20 rounded-2xl border border-[#b7f34a]/70 bg-[#071711]/95 p-3 text-white shadow-2xl backdrop-blur-xl"><div className="flex items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#b7f34a] text-[#071711]">{instruction?.toLowerCase().includes("esquerda") || instruction?.toLowerCase().includes("left") ? <CornerUpLeft className="h-7 w-7" /> : instruction?.toLowerCase().includes("direita") || instruction?.toLowerCase().includes("right") ? <CornerUpRight className="h-7 w-7" /> : <ArrowUpRight className="h-7 w-7" />}</span><div className="min-w-0 flex-1"><p className="text-[10px] font-bold tracking-[.16em] text-[#9bb5a4]">PRÓXIMA INSTRUÇÃO</p><p className="text-base font-extrabold leading-tight">{instruction || "Calculando caminho pelas ruas…"}</p>{instructionMeters != null ? <p className="mt-1 font-mono text-sm font-bold text-[#b7f34a]">{instructionMeters >= 1000 ? `${(instructionMeters / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km` : `${Math.max(0, Math.round(instructionMeters))} m`}</p> : null}</div><button type="button" onClick={onToggleAudio} aria-label={audioEnabled ? "Desativar narração" : "Ativar narração"} className="flex min-w-[58px] shrink-0 flex-col items-center gap-1 rounded-xl border border-white/15 px-2 py-2 text-[9px] font-bold text-[#a9c4b3]">{audioEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}{audioEnabled ? "SOM ON" : "SOM OFF"}</button></div></div>
         </>
       ) : null}
       {!navigating ? <div className="absolute left-3 right-16 top-3 z-20">
         {searchOpen ? (
           <div className="overflow-hidden rounded-2xl border border-white/20 bg-[#101d19]/95 shadow-2xl backdrop-blur-xl">
             <div className="flex items-center gap-2 p-2">
-              <Search className="ml-2 h-5 w-5 shrink-0 text-signal" />
+              <Search className="ml-2 h-5 w-5 shrink-0 text-[#b7f34a]" />
               <input
                 autoFocus
                 value={query}
@@ -503,7 +517,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
             {hits.length ? <div className="max-h-56 overflow-y-auto border-t border-white/10">
               {hits.map((hit, index) => (
                 <button key={hit.lat + ":" + hit.lng + ":" + index} type="button" onClick={() => chooseAddress(hit)} className="flex w-full items-start gap-3 border-b border-white/5 px-4 py-3 text-left last:border-0 hover:bg-white/5">
-                  <Navigation className="mt-0.5 h-4 w-4 shrink-0 text-signal" />
+                  <Navigation className="mt-0.5 h-4 w-4 shrink-0 text-[#b7f34a]" />
                   <span className="text-sm leading-snug text-paper">{hit.label}</span>
                 </button>
               ))}
@@ -511,7 +525,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           </div>
         ) : (
           <button type="button" onClick={() => setSearchOpen(true)} className="flex h-12 w-full items-center gap-3 rounded-2xl border border-white/20 bg-[#101d19]/90 px-4 text-left text-sm text-muted shadow-xl backdrop-blur-xl">
-            <Search className="h-5 w-5 text-signal" />
+            <Search className="h-5 w-5 text-[#b7f34a]" />
             <span>Pesquisar endereço ou local</span>
           </button>
         )}
@@ -531,7 +545,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         </div>
       ) : null}
       {!navigating && !trafficKey ? (
-        <div className="absolute bottom-3 left-3 z-10 rounded-xl border border-[#3dcc7a]/50 bg-[#071711]/90 px-3 py-2 text-xs text-white shadow-xl">Trânsito indisponível: configure VITE_TOMTOM_API_KEY.</div>
+        <div className="absolute bottom-3 left-3 z-10 rounded-xl border border-[#b7f34a]/50 bg-[#071711]/90 px-3 py-2 text-xs text-white shadow-xl">Trânsito indisponível: configure VITE_TOMTOM_API_KEY.</div>
       ) : null}
       <div className={`absolute right-3 ${navigating ? "top-[5.5rem]" : "top-[4.5rem]"} z-10 flex flex-col gap-2`}>
         {!navigating && trafficKey ? <IconButton label={trafficEnabled ? "Ocultar trânsito ao vivo" : "Mostrar trânsito ao vivo"} pressed={trafficEnabled} onClick={() => {
