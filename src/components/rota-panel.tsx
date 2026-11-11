@@ -11,7 +11,7 @@ import { MapView } from "@/components/map-view";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/cn";
 import { drivingRoute } from "@/lib/routing";
-import { createLiveShare, createPermanentLiveShare, publishPermanentLiveShare, stopLiveShare } from "@/lib/live-sharing";
+import { createLiveShare, createPermanentLiveShare, publishPermanentLiveShare, rotatePermanentLiveShare, stopLiveShare } from "@/lib/live-sharing";
 
 function trackingUrl(token: string): string {
   const host = import.meta.env.VITE_PUBLIC_HOSTNAME as string | undefined;
@@ -500,6 +500,39 @@ export function RotaPanel() {
           <div className="mt-3 space-y-2">
             <p className="break-all rounded-xl bg-black/20 p-2 text-xs text-signal">{permanentLink}</p>
             <button type="button" onClick={() => void navigator.clipboard.writeText(permanentLink)} className="h-11 w-full rounded-full bg-signal text-sm font-bold text-signal-ink">Copiar link permanente</button>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" disabled={permanentBusy} onClick={async () => {
+                setPermanentBusy(true);
+                try {
+                  // Marca como inativo no servidor e remove o token local
+                  await publishPermanentLiveShare({ active: false, status: "idle", updated_at: new Date().toISOString() }).catch(() => undefined);
+                  localStorage.removeItem("circuito-permanent-share-token");
+                  setPermanentLink("");
+                } finally { setPermanentBusy(false); }
+              }} className="h-11 rounded-full border border-line text-sm font-semibold disabled:opacity-50">
+                Desativar
+              </button>
+              <button type="button" disabled={permanentBusy} onClick={async () => {
+                setPermanentBusy(true);
+                try {
+                  // Tenta rotacionar o token (novo endereço). Se a função ainda não existir, reutiliza o atual.
+                  let token: string;
+                  try {
+                    token = await rotatePermanentLiveShare();
+                  } catch {
+                    await publishPermanentLiveShare({ active: false, status: "idle", updated_at: new Date().toISOString() }).catch(() => undefined);
+                    token = await createPermanentLiveShare();
+                  }
+                  localStorage.setItem("circuito-permanent-share-token", token);
+                  setPermanentLink(trackingUrl(token));
+                } catch (error) {
+                  window.alert(error instanceof Error ? error.message : "Não foi possível gerar um novo link.");
+                } finally { setPermanentBusy(false); }
+              }} className="h-11 rounded-full border border-line text-sm font-semibold disabled:opacity-50">
+                Novo link
+              </button>
+            </div>
+            <p className="text-[11px] text-muted">Desativar para de atualizar o link atual. Novo link gera outro endereço (o antigo deixa de ser atualizado).</p>
           </div>
         ) : (
           <button type="button" disabled={permanentBusy} onClick={async () => {

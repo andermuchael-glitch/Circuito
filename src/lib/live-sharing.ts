@@ -118,6 +118,13 @@ export async function createPermanentLiveShare(): Promise<string> {
   return token;
 }
 
+/** Gera um token novo (invalida o anterior). Requer a função rotate_permanent_live_share no Supabase. */
+export async function rotatePermanentLiveShare(): Promise<string> {
+  const token = await rpc<string>("rotate_permanent_live_share", {});
+  if (!token) throw new Error("Não foi possível gerar um novo link permanente.");
+  return token;
+}
+
 export async function publishPermanentLiveShare(payload: PermanentSharePayload): Promise<void> {
   await rpc<boolean>("publish_permanent_live_share", { p_payload: payload });
 }
