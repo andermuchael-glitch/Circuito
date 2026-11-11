@@ -98,14 +98,14 @@ export function LiveEngine() {
       try {
         const share = JSON.parse(localStorage.getItem("circuito-live-share") || "null") as { id?: string; corridaId?: string } | null;
         const currentRun = corridaAtiva(useDelivery.getState());
-        if (share?.id && currentRun?.id === share.corridaId) {
+        if (share?.id && currentRun && currentRun.id === share.corridaId) {
           void publishLivePoint(share.id, { lat: point.lat, lng: point.lng, accuracy, speed, time: trackedPoint.t }, [...currentRun.points, trackedPoint]).catch((error) => {
             console.warn("[Circuito] Falha ao publicar localização compartilhada", error);
           });
         }
 
         const permanentToken = localStorage.getItem("circuito-permanent-share-token");
-        if (permanentToken && currentRun?.status === "ativa" && currentRun.modo === "gps") {
+        if (permanentToken && currentRun && currentRun.status === "ativa" && currentRun.modo === "gps") {
           const latestState = useDelivery.getState();
           const stop = nextStop(currentRun, latestState.comandas);
           const allDeliveriesDone = currentRun.ordem.length > 0 && currentRun.ordem.every((id) => currentRun.feitas.includes(id));

@@ -111,10 +111,10 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     const state = useDelivery.getState();
     const initial = state.gaze ?? state.base ?? { lat: -26.9955, lng: -48.6432 };
     const style = {
-      version: 8,
+      version: 8 as const,
       sources: {
-        "openstreetmap": {
-          type: "raster",
+        openstreetmap: {
+          type: "raster" as const,
           tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
           tileSize: 256,
           attribution: "© OpenStreetMap contributors",
@@ -124,7 +124,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       layers: [
         {
           id: "openstreetmap-base",
-          type: "raster",
+          type: "raster" as const,
           source: "openstreetmap",
           minzoom: 0,
           maxzoom: 22,
@@ -143,7 +143,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           bearing: 0,
           maxZoom: 20,
           minZoom: 3,
-          attributionControl: true,
+          attributionControl: false,
           logoPosition: "bottom-left",
           cooperativeGestures: false,
         });
