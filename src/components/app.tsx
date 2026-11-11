@@ -76,7 +76,7 @@ function Header() {
           <Route className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <p className="font-display text-2xl leading-none tracking-wide">CIRCUITO</p>
+          <p className="font-display text-2xl leading-none tracking-wide">ROUTE377</p>
           <p className="truncate font-mono text-xs text-muted">
             {gaze && liveStatus === "ativo" ? coordLabel(gaze.lat, gaze.lng) : "GPS das corridas"}
           </p>
