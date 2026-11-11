@@ -4,6 +4,7 @@ import { brl, clock, duration, kmLabel } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
 type Periodo = "dia" | "mes" | "ano";
+type Visualizacao = "corridas" | "comandas" | "tudo";
 
 const periodos: { id: Periodo; label: string }[] = [
   { id: "dia", label: "Dia" },
@@ -42,6 +43,7 @@ export function KmPanel() {
   const arrancadas = useDelivery((state) => state.arrancadas);
   const ativaId = useDelivery((state) => state.ativaId);
   const [periodo, setPeriodo] = useState<Periodo>("dia");
+  const [visualizacao, setVisualizacao] = useState<Visualizacao>("tudo");
   const [cursor, setCursor] = useState(() => new Date());
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const focusDay = useDelivery((state) => state.focusDay);
@@ -64,6 +66,14 @@ export function KmPanel() {
         .slice()
         .sort((a, b) => b.startedAt - a.startedAt),
     [corridas, periodo, cursor],
+  );
+  const comandasDoPeriodo = useMemo(
+    () =>
+      comandas
+        .filter((item) => samePeriod(item.deliveredAt ?? item.createdAt, periodo, cursor))
+        .slice()
+        .sort((a, b) => (b.deliveredAt ?? b.createdAt) - (a.deliveredAt ?? a.createdAt)),
+    [comandas, periodo, cursor],
   );
   const taxas = entregues.reduce((sum, item) => sum + item.valor, 0);
   const entregas = entregues.reduce((sum, item) => sum + qtd(item), 0);
@@ -140,67 +150,122 @@ export function KmPanel() {
       <h2 className="mt-6 text-sm font-semibold tracking-wide text-muted">
         {periodo === "dia" ? "DO DIA" : periodo === "mes" ? "DO MÊS" : "DO ANO"}
       </h2>
-      <div className="mt-2 h-48 rounded-2xl border border-line bg-raised p-2">
-        <KmChart rows={rows} />
+      <div className="mt-2 flex gap-2">
+        {([
+          ["tudo", "Tudo"],
+          ["corridas", "Corridas"],
+          ["comandas", "Comandas"],
+        ] as const).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setVisualizacao(id)}
+            className={cn(
+              "h-10 flex-1 rounded-full px-2 text-sm font-semibold",
+              visualizacao === id ? "bg-paper text-ink" : "bg-raised text-muted",
+            )}
+          >
+            {label}
+          </button>
+        ))}
       </div>
-
-      <ul className="mt-4 space-y-2">
-        {saidas.length === 0 ? (
-          <li className="rounded-2xl border border-dashed border-line px-3 py-6 text-sm text-muted">
-            Nenhuma rota neste período.
-          </li>
-        ) : (
-          saidas.map((item) => (
-            <li key={item.id} className="rounded-2xl border border-line px-3 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium">
-                    {new Date(item.startedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} ·{" "}
-                    {clock(item.startedAt)}
-                    {item.status === "ativa" ? " · aberta" : ""}
-                  </p>
-                  <p className="text-sm text-muted">
-                    {brl(taxasDaCorrida(item, comandas))} · {item.feitas.length}{" "}
-                    {item.feitas.length === 1 ? "entrega" : "entregas"}
-                    {item.endedAt ? ` · ${duration(item.endedAt - item.startedAt)}` : ""}
-                  </p>
-                </div>
-                <p className="font-mono text-sm">{kmLabel(item.km)}</p>
-              </div>
-              {confirmId === item.id ? (
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmId(null)}
-                    className="h-10 rounded-full border border-line text-sm"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      useDelivery.getState().apagarCorrida(item.id);
-                      setConfirmId(null);
-                    }}
-                    className="h-10 rounded-full bg-danger text-sm font-semibold text-ink"
-                  >
-                    Apagar
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmId(item.id)}
-                  disabled={item.id === ativaId}
-                  className="mt-2 text-sm text-danger disabled:text-muted"
-                >
-                  {item.id === ativaId ? "Encerre a corrida antes de apagar" : "Apagar rota"}
-                </button>
-              )}
-            </li>
-          ))
-        )}
-      </ul>
+      {visualizacao !== "comandas" ? (
+        <>
+          <div className="mt-2 h-48 rounded-2xl border border-line bg-raised p-2">
+            <KmChart rows={rows} />
+          </div>
+          <h3 className="mt-4 text-sm font-semibold text-muted">CORRIDAS REGISTRADAS ({saidas.length})</h3>
+          <ul className="mt-2 space-y-2">
+            {saidas.length === 0 ? (
+              <li className="rounded-2xl border border-dashed border-line px-3 py-6 text-sm text-muted">
+                Nenhuma corrida neste período.
+              </li>
+            ) : (
+              saidas.map((item) => (
+                <li key={item.id} className="rounded-2xl border border-line px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium">
+                        {new Date(item.startedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} ·{" "}
+                        {clock(item.startedAt)}
+                        {item.status === "ativa" ? " · aberta" : ""}
+                      </p>
+                      <p className="text-sm text-muted">
+                        {brl(taxasDaCorrida(item, comandas))} · {item.feitas.length}{" "}
+                        {item.feitas.length === 1 ? "entrega" : "entregas"}
+                        {item.endedAt ? ` · ${duration(item.endedAt - item.startedAt)}` : ""}
+                      </p>
+                    </div>
+                    <p className="font-mono text-sm">{kmLabel(item.km)}</p>
+                  </div>
+                  {confirmId === item.id ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button type="button" onClick={() => setConfirmId(null)} className="h-10 rounded-full border border-line text-sm">
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          useDelivery.getState().apagarCorrida(item.id);
+                          setConfirmId(null);
+                        }}
+                        className="h-10 rounded-full bg-danger text-sm font-semibold text-ink"
+                      >
+                        Apagar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmId(item.id)}
+                      disabled={item.id === ativaId}
+                      className="mt-2 text-sm text-danger disabled:text-muted"
+                    >
+                      {item.id === ativaId ? "Encerre a corrida antes de apagar" : "Apagar rota"}
+                    </button>
+                  )}
+                </li>
+              ))
+            )}
+          </ul>
+        </>
+      ) : null}
+      {visualizacao !== "corridas" ? (
+        <>
+          <h3 className="mt-5 text-sm font-semibold text-muted">COMANDAS ENTREGUES ({comandasDoPeriodo.length})</h3>
+          <ul className="mt-2 space-y-2">
+            {comandasDoPeriodo.length === 0 ? (
+              <li className="rounded-2xl border border-dashed border-line px-3 py-6 text-sm text-muted">
+                Nenhuma comanda registrada neste período.
+              </li>
+            ) : (
+              comandasDoPeriodo.map((item) => {
+                const when = item.deliveredAt ?? item.createdAt;
+                return (
+                  <li key={item.id} className="rounded-2xl border border-line px-3 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          {new Date(when).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} · {clock(when)}
+                        </p>
+                        <p className="mt-1 truncate text-sm text-muted">
+                          {item.cliente || item.numero}
+                          {item.quantidade && item.quantidade > 1 ? ` · ${item.quantidade} entregas` : ""}
+                        </p>
+                        <p className="mt-1 text-xs text-muted">
+                          {item.endereco && item.endereco !== "Sem endereço" ? item.endereco : "Sem endereço informado"}
+                        </p>
+                      </div>
+                      <p className="shrink-0 font-mono text-sm">{brl(item.valor)}</p>
+                    </div>
+                    <p className="mt-2 text-xs text-muted">{item.numero} · {item.status === "entregue" ? "Entregue" : item.status}</p>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </>
+      ) : null}
     </div>
   );
 }
