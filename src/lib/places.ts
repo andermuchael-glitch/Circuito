@@ -128,14 +128,18 @@ export function searchPlaces(query: string, near?: LatLng | null) {
 function expandQueries(query: string) {
   const q = query.trim().replace(/\s+/g, " ");
   const city = cityOf(q);
-  const suffix = city ? "" : `, ${DEFAULT_CITY}`;
+  const suffix = city ? "" : `, Centro, ${DEFAULT_CITY}, Brasil`;
   const out = [q, `${q}${suffix}`];
-  const house = q.match(/^(.*\D)[,\s]+(\d{1,5})$/);
+  // Endereços com logradouros numéricos (ex.: Rua 1822, 1171) precisam
+  // preservar o primeiro número como nome da rua e o último como imóvel.
+  const house = q.match(/^(?:rua|r\.?|avenida|av\.?|travessa|tv\.?)?\s*(.*?)[,\s]+(\d{1,5})$/i);
   if (house) {
     const street = house[1].trim();
     const num = house[2];
-    out.push(`${num} ${street}${suffix}`);
-    out.push(`${street} ${num}${suffix}`);
+    const prefix = /^(rua|r\.?|avenida|av\.?|travessa|tv\.?)\s*/i.test(q) ? "" : "Rua ";
+    out.push(`${num} ${prefix}${street}${suffix}`);
+    out.push(`${prefix}${street}, ${num}${suffix}`);
+    out.push(`${prefix}${street} ${num}, Balneário Camboriú, SC, Brasil`);
   }
   return [...new Set(out)];
 }
@@ -146,7 +150,11 @@ function validCandidate(item: GeoHit, query: string, near?: LatLng | null) {
   if (!Number.isFinite(item.lat) || !Number.isFinite(item.lng) || Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180) return false;
   const requestedNumber = houseNumber(query);
   // Se o usuário digitou número, só aceitamos resultado que confirme exatamente esse número.
-  if (requestedNumber && item.number !== requestedNumber) return false;
+  if (requestedNumber) {
+    const structuredMatch = item.number === requestedNumber;
+    const labelMatch = new RegExp(`(?:^|[^0-9])${requestedNumber}(?:$|[^0-9])`).test(item.label);
+    if (!structuredMatch && !labelMatch) return false;
+  }
   const requestedCity = cityOf(query);
   if (requestedCity && item.city && fold(item.city) !== fold(requestedCity)) return false;
   if (!requestedCity && item.city && /balne[aá]rio/i.test(DEFAULT_CITY) && !/balne[aá]rio cambori[uú]/i.test(item.city)) return false;
