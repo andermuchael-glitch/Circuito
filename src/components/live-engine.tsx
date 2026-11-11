@@ -120,7 +120,7 @@ export function LiveEngine() {
                 ? { lat: stop.lat, lng: stop.lng, label: stop.endereco, order: stop.numero, customer: stop.cliente, status: "delivery" as const }
                 : { lat: destination.lat, lng: destination.lng, label: "Voltando para a base", order: null, customer: null, status: "returning" as const };
           const targetKey = `${target.lat.toFixed(5)},${target.lng.toFixed(5)},${target.order ?? target.status}`;
-          if (Date.now() - lastPermanentPublish >= 12000 || targetKey !== lastPermanentTarget) {
+          if (Date.now() - lastPermanentPublish >= 30000 || targetKey !== lastPermanentTarget) {
             lastPermanentPublish = Date.now();
             lastPermanentTarget = targetKey;
             void (async () => {

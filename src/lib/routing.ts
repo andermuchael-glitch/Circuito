@@ -49,6 +49,29 @@ const turnWord: Record<string, string> = {
   uturn: "em retorno",
 };
 
+
+const routeCache = new Map<string, { at: number; result: DrivingRoute | null }>();
+const CACHE_TTL_MS = 4 * 60 * 1000; // 4 minutes
+
+function cacheKey(stops: LatLng[]): string {
+  return stops.map((p) => `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`).join("|");
+}
+
+function getCached(stops: LatLng[]): DrivingRoute | null | undefined {
+  const key = cacheKey(stops);
+  const hit = routeCache.get(key);
+  if (!hit) return undefined;
+  if (Date.now() - hit.at > CACHE_TTL_MS) {
+    routeCache.delete(key);
+    return undefined;
+  }
+  return hit.result;
+}
+
+function setCached(stops: LatLng[], result: DrivingRoute | null) {
+  routeCache.set(cacheKey(stops), { at: Date.now(), result });
+}
+
 function tomtomCue(instructions: TomTomInstruction[]): RouteCue | null {
   if (!instructions.length) return null;
   const next = instructions.find((item) => {
@@ -142,11 +165,21 @@ function cueFromSteps(steps: OsrmStep[]): RouteCue | null {
   };
 }
 
-/** TomTom is the primary road router; OSRM is retained as a fallback. */
+/** OSRM (free) is the primary router. TomTom is used only when VITE_USE_TOMTOM_ROUTING=true. */
 export async function drivingRoute(stops: LatLng[]): Promise<DrivingRoute | null> {
   if (stops.length < 2) return null;
-  const tomtomRoute = await tomtomDrivingRoute(stops);
-  if (tomtomRoute) return tomtomRoute;
+
+  const cached = getCached(stops);
+  if (cached !== undefined) return cached;
+
+  const useTomTom = import.meta.env.VITE_USE_TOMTOM_ROUTING === "true";
+  if (useTomTom) {
+    const tomtomRoute = await tomtomDrivingRoute(stops);
+    if (tomtomRoute) {
+      setCached(stops, tomtomRoute);
+      return tomtomRoute;
+    }
+  }
 
   const path = stops.map((point) => `${point.lng.toFixed(5)},${point.lat.toFixed(5)}`).join(";");
   const url = `https://router.project-osrm.org/route/v1/driving/${path}?overview=full&geometries=geojson&steps=true`;
@@ -175,13 +208,16 @@ export async function drivingRoute(stops: LatLng[]): Promise<DrivingRoute | null
     if (points.length < 2) return null;
     const legs = Array.isArray(route.legs) ? route.legs : [];
     const steps = legs.flatMap((leg) => Array.isArray(leg?.steps) ? leg.steps : []);
-    return {
+    const result = {
       km: route.distance / 1000,
       durationSeconds: Number.isFinite(route.duration) ? Math.max(0, route.duration ?? 0) : 0,
       points,
       cue: cueFromSteps(steps),
     };
+    setCached(stops, result);
+    return result;
   } catch {
+    setCached(stops, null);
     return null;
   }
 }
