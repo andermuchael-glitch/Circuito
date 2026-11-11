@@ -115,10 +115,12 @@ export function RotaPanel() {
   ]);
 
   const routeRequestKey = routeStops.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join(":");
+  const routeStopsRef = useRef(routeStops);
+  routeStopsRef.current = routeStops;
 
   useEffect(() => {
     const store = useDelivery.getState();
-    if (routeStops.length < 2) {
+    if (routeStopsRef.current.length < 2) {
       store.setRoute({ line: [], km: null, kind: null, cue: null });
       setRouteLoading(false);
       setRouteFailed(false);
@@ -131,7 +133,7 @@ export function RotaPanel() {
     // Calcula assim que a origem ou destino muda, sem esperar o usuário iniciar a corrida.
     void (async () => {
       try {
-        const result = await drivingRoute(routeStops);
+        const result = await drivingRoute(routeStopsRef.current);
         if (controller.signal.aborted) return;
         if (result) {
           useDelivery.getState().setRoute({
@@ -156,7 +158,7 @@ export function RotaPanel() {
     })();
 
     return () => controller.abort();
-  }, [routeRequestKey, routeStops]);
+  }, [routeRequestKey]);
   useEffect(() => {
     if (!run || run.modo !== "gps" || liveStatus !== "ativo" || !routeCue || routeKind !== "rua") return;
     if (!voiceEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
