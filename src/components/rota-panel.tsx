@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Check, Maximize2, Minimize2, Navigation, Play, Square } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Maximize2, Minimize2, Navigation, Play, Plus, Square } from "lucide-react";
 import { GhostButton, PrimaryButton } from "@/components/bits";
 import { payName } from "@/lib/labels";
 
@@ -606,6 +606,23 @@ export function RotaPanel() {
         </div>
       ) : null}
 
+      <section className="mt-3 rounded-2xl border border-signal/50 bg-raised p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div><p className="text-sm font-semibold">Adicionar entregas</p><p className="text-xs text-muted">Inclua outra comanda sem encerrar esta rota.</p></div>
+          <button type="button" onClick={() => useDelivery.getState().openDraft()} className="inline-flex h-10 shrink-0 items-center gap-1 rounded-full bg-signal px-3 text-sm font-bold text-signal-ink"><Plus className="h-4 w-4" /> Nova</button>
+        </div>
+        {abertas.filter((item) => !run.ordem.includes(item.id)).length > 0 ? (
+          <div className="mt-3 space-y-2"><p className="text-xs font-semibold tracking-wide text-muted">COMANDAS JÁ CADASTRADAS</p>
+            {abertas.filter((item) => !run.ordem.includes(item.id)).map((item) => (
+              <div key={item.id} className="flex items-center gap-2 rounded-xl border border-line bg-surface p-2">
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{item.cliente}</p><p className="truncate text-xs text-muted">{item.endereco}</p></div>
+                <button type="button" onClick={() => useDelivery.getState().addToCorrida([item.id])} className="h-9 rounded-full bg-signal px-3 text-xs font-bold text-signal-ink">Adicionar</button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
       <details className="mt-3 rounded-2xl border border-line bg-surface p-3">
       <summary className="cursor-pointer list-none text-sm font-semibold">Ver comandas e paradas ({run.feitas.length}/{run.ordem.length} concluídas)</summary>
       <ol className="mt-3 space-y-2">
@@ -614,6 +631,8 @@ export function RotaPanel() {
           if (!item) return null;
           const done = run.feitas.includes(id);
           const current = upcoming?.id === id;
+          const pendingIds = run.ordem.filter((stopId) => !run.feitas.includes(stopId));
+          const pendingIndex = pendingIds.indexOf(id);
           return (
             <li
               key={id}
@@ -640,6 +659,16 @@ export function RotaPanel() {
                   </p>
                 </div>
               </div>
+              {!done ? <div className="mt-2 flex justify-end gap-2">
+                <button type="button" aria-label="Priorizar parada" disabled={pendingIndex <= 0} onClick={() => {
+                  const ids = pendingIds.slice(); [ids[pendingIndex - 1], ids[pendingIndex]] = [ids[pendingIndex], ids[pendingIndex - 1]];
+                  useDelivery.getState().reorderCorrida(ids);
+                }} className="grid h-9 w-9 place-items-center rounded-full border border-line disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button>
+                <button type="button" aria-label="Adiar parada" disabled={pendingIndex < 0 || pendingIndex >= pendingIds.length - 1} onClick={() => {
+                  const ids = pendingIds.slice(); [ids[pendingIndex], ids[pendingIndex + 1]] = [ids[pendingIndex + 1], ids[pendingIndex]];
+                  useDelivery.getState().reorderCorrida(ids);
+                }} className="grid h-9 w-9 place-items-center rounded-full border border-line disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button>
+              </div> : null}
               {current ? (
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <a
