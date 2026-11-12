@@ -13,11 +13,14 @@ import { cn } from "@/lib/cn";
 import { drivingRoute } from "@/lib/routing";
 import { createLiveShare, createPermanentLiveShare, publishPermanentLiveShare, rotatePermanentLiveShare, stopLiveShare } from "@/lib/live-sharing";
 
-const DEFAULT_TRACKING_MESSAGE = "Meu nome é Anderson, estou com o seu pedido da Pizza Pop🍕🍕. Acompanhe pelo link, estou a caminho!";
+const DEFAULT_TRACKING_MESSAGE = "Oi, estou com o seu pedido, acompanhe pelo link, estou a caminho!.";
 const TRACKING_MESSAGE_KEY = "route377-tracking-message";
 function savedTrackingMessage(): string {
-  try { return localStorage.getItem(TRACKING_MESSAGE_KEY) || DEFAULT_TRACKING_MESSAGE; }
-  catch { return DEFAULT_TRACKING_MESSAGE; }
+  try {
+    const saved = localStorage.getItem(TRACKING_MESSAGE_KEY);
+    if (!saved || saved === "Meu nome é Anderson, estou com o seu pedido da Pizza Pop🍕🍕. Acompanhe pelo link, estou a caminho!") return DEFAULT_TRACKING_MESSAGE;
+    return saved;
+  } catch { return DEFAULT_TRACKING_MESSAGE; }
 }
 function trackingUrl(token: string, message = savedTrackingMessage()): string {
   const host = import.meta.env.VITE_PUBLIC_HOSTNAME as string | undefined;
