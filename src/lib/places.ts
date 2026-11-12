@@ -79,7 +79,6 @@ function cityOf(query: string) {
   return null;
 }
 
-const DEFAULT_CITY = "Balneário Camboriú, Santa Catarina";
 const SAVED_ADDRESS_PINS_KEY = "circuito-corrected-address-pins-v1";
 
 function addressKey(value: string) {
@@ -128,7 +127,8 @@ export function searchPlaces(query: string, near?: LatLng | null) {
 function expandQueries(query: string) {
   const q = query.trim().replace(/\s+/g, " ");
   const city = cityOf(q);
-  const suffix = city ? "" : `, Centro, ${DEFAULT_CITY}, Brasil`;
+  // Busca nacional: não completar automaticamente com Balneário Camboriú.
+  const suffix = city ? "" : ", Brasil";
   const out = [q, `${q}${suffix}`];
   // Endereços com logradouros numéricos (ex.: Rua 1822, 1171) precisam
   // preservar o primeiro número como nome da rua e o último como imóvel.
@@ -157,9 +157,7 @@ function validCandidate(item: GeoHit, query: string, near?: LatLng | null) {
   }
   const requestedCity = cityOf(query);
   if (requestedCity && item.city && fold(item.city) !== fold(requestedCity)) return false;
-  if (!requestedCity && item.city && /balne[aá]rio/i.test(DEFAULT_CITY) && !/balne[aá]rio cambori[uú]/i.test(item.city)) return false;
-  // Evita resultados muito distantes da referência local, sem substituir uma cidade explicitamente digitada.
-  if (near && !requestedCity && haversine(near, item) > 60) return false;
+  // A posição atual apenas prioriza resultados próximos; não bloqueia outras cidades.
   return true;
 }
 
@@ -168,10 +166,10 @@ async function fetchNominatim(query: string, near?: LatLng | null): Promise<GeoH
     format: "jsonv2", limit: "8", countrycodes: "br", addressdetails: "1",
     q: query,
   });
-  if (near) {
+  if (near && !cityOf(query)) {
     const span = 0.08;
     params.set("viewbox", `${near.lng - span},${near.lat + span},${near.lng + span},${near.lat - span}`);
-    params.set("bounded", "0");
+    params.set("bounded", "0"); // preferência, nunca restrição
   }
   const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
     headers: { Accept: "application/json", "Accept-Language": "pt-BR" },
@@ -233,8 +231,9 @@ async function searchTomTom(query: string, near?: LatLng | null): Promise<GeoHit
   const key = import.meta.env.VITE_TOMTOM_API_KEY as string | undefined;
   if (!key) return [];
   const params = new URLSearchParams({ key, countrySet: "BR", limit: "8", language: "pt-BR", typeahead: "false" });
-  if (near) {
-    params.set("lat", String(near.lat)); params.set("lon", String(near.lng)); params.set("radius", "50000");
+  // Sem raio de restrição: permite encontrar endereços em qualquer cidade.
+  if (near && !cityOf(query)) {
+    params.set("lat", String(near.lat)); params.set("lon", String(near.lng));
   }
   const url = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(query)}.json?${params.toString()}`;
   const response = await fetch(url);
