@@ -245,6 +245,8 @@ type Store = Persisted & {
   apagarComanda: (id: string) => void;
   cancelComanda: (id: string) => void;
   startCorrida: (ids: string[]) => void;
+  addToCorrida: (ids: string[]) => void;
+  reorderCorrida: (ids: string[]) => void;
   markEntregue: (id: string) => void;
   encerrar: () => void;
   apagarCorrida: (id: string) => void;
@@ -374,6 +376,8 @@ export const useDelivery = create<Store>()(
         const lng = comEndereco && qtdDia === 1 ? draft.lng : null;
         if (qtdDia === 1 && comEndereco && (lat == null || lng == null)) return;
         const seq = get().seq + 1;
+        const ativa = corridaAtiva(get());
+        const incluirNaRota = Boolean(ativa && !registrar && lat != null && lng != null);
         const comanda: Comanda = {
           id: crypto.randomUUID(),
           numero: `C-${seq}`,
@@ -386,7 +390,7 @@ export const useDelivery = create<Store>()(
           valor,
           quantidade: qtdDia,
           pagamento: draft.pagamento,
-          status: registrar ? "entregue" : "aberta",
+          status: registrar ? "entregue" : incluirNaRota ? "rota" : "aberta",
           createdAt: registrar ? when : Date.now(),
           deliveredAt: registrar ? when : undefined,
         };
@@ -397,13 +401,14 @@ export const useDelivery = create<Store>()(
           seq,
           arrancadas,
           comandas: [comanda, ...get().comandas],
+          corridas: incluirNaRota && ativa ? replaceCorrida(get().corridas, { ...ativa, ordem: [...ativa.ordem, comanda.id] }) : get().corridas,
           draft: null,
           selectedId: comanda.id,
-          tab: registrar ? "km" : "comandas",
+          tab: registrar ? "km" : incluirNaRota ? "rota" : "comandas",
           focusDay: registrar ? when : null,
         });
         toast.success(
-          qtdDia > 1 ? `${qtdDia} comandas lançadas no dia` : registrar ? `${comanda.cliente} registrada no dia` : `${comanda.numero} entrou na fila`,
+          qtdDia > 1 ? `${qtdDia} comandas lançadas no dia` : registrar ? `${comanda.cliente} registrada no dia` : incluirNaRota ? `${comanda.numero} adicionada à rota em andamento` : `${comanda.numero} entrou na fila`,
         );
       },
       editarComanda: (id, input) => {
@@ -491,6 +496,30 @@ export const useDelivery = create<Store>()(
           gpsError: null,
           nearId: null,
         });
+      },
+      addToCorrida: (ids) => {
+        const ativa = corridaAtiva(get());
+        if (!ativa || !ids.length) return;
+        const novos = ids.filter((id) => {
+          const item = get().comandas.find((comanda) => comanda.id === id);
+          return Boolean(item && item.status === "aberta" && comPin(item) && !ativa.ordem.includes(id));
+        });
+        if (!novos.length) return;
+        set({
+          corridas: replaceCorrida(get().corridas, { ...ativa, ordem: [...ativa.ordem, ...novos] }),
+          comandas: get().comandas.map((item) => novos.includes(item.id) ? { ...item, status: "rota" } : item),
+          fitToken: get().fitToken + 1,
+        });
+        toast.success(novos.length === 1 ? "Comanda adicionada à rota" : `${novos.length} comandas adicionadas à rota`);
+      },
+      reorderCorrida: (ids) => {
+        const ativa = corridaAtiva(get());
+        if (!ativa) return;
+        const pendentes = ativa.ordem.filter((id) => !ativa.feitas.includes(id));
+        const concluidas = ativa.ordem.filter((id) => ativa.feitas.includes(id));
+        const ordenados = ids.filter((id) => pendentes.includes(id));
+        const faltantes = pendentes.filter((id) => !ordenados.includes(id));
+        set({ corridas: replaceCorrida(get().corridas, { ...ativa, ordem: [...concluidas, ...ordenados, ...faltantes] }), fitToken: get().fitToken + 1 });
       },
       markEntregue: (id) => {
         const ativa = corridaAtiva(get());
