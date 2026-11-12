@@ -13,10 +13,18 @@ import { cn } from "@/lib/cn";
 import { drivingRoute } from "@/lib/routing";
 import { createLiveShare, createPermanentLiveShare, publishPermanentLiveShare, rotatePermanentLiveShare, stopLiveShare } from "@/lib/live-sharing";
 
-function trackingUrl(token: string): string {
+const DEFAULT_TRACKING_MESSAGE = "Meu nome é Anderson, estou com o seu pedido da Pizza Pop🍕🍕. Acompanhe pelo link, estou a caminho!";
+const TRACKING_MESSAGE_KEY = "route377-tracking-message";
+function savedTrackingMessage(): string {
+  try { return localStorage.getItem(TRACKING_MESSAGE_KEY) || DEFAULT_TRACKING_MESSAGE; }
+  catch { return DEFAULT_TRACKING_MESSAGE; }
+}
+function trackingUrl(token: string, message = savedTrackingMessage()): string {
   const host = import.meta.env.VITE_PUBLIC_HOSTNAME as string | undefined;
   const base = host ? `https://${host.replace(/\/$/, "")}/` : window.location.href;
-  return new URL(`acompanhar/${token}`, base).toString();
+  const url = new URL(`acompanhar/${token}`, base);
+  url.searchParams.set("mensagem", message);
+  return url.toString();
 }
 
 export function RotaPanel() {
@@ -48,11 +56,27 @@ export function RotaPanel() {
   const [routeFailed, setRouteFailed] = useState(false);
   const [shareLink, setShareLink] = useState("");
   const [shareBusy, setShareBusy] = useState(false);
+  const [trackingMessage, setTrackingMessage] = useState(savedTrackingMessage);
   const [permanentLink, setPermanentLink] = useState(() => {
     try { const token = localStorage.getItem("circuito-permanent-share-token"); return token ? trackingUrl(token) : ""; } catch { return ""; }
   });
   const [permanentBusy, setPermanentBusy] = useState(false);
   const lastSpokenCue = useRef("");
+
+  useEffect(() => {
+    try { localStorage.setItem(TRACKING_MESSAGE_KEY, trackingMessage); } catch { /* preferência opcional */ }
+    const token = (() => {
+      try { return localStorage.getItem("circuito-permanent-share-token"); } catch { return null; }
+    })();
+    if (token) setPermanentLink(trackingUrl(token, trackingMessage));
+    if (shareLink) {
+      try {
+        const url = new URL(shareLink);
+        url.searchParams.set("mensagem", trackingMessage);
+        setShareLink(url.toString());
+      } catch { /* link ainda não disponível */ }
+    }
+  }, [trackingMessage]);
   const routeLine = useDelivery((state) => state.routeLine);
   const currentRunPosition = gaze ?? (run?.points.length ? run.points[run.points.length - 1] : null) ?? origin;
   const remainingKm = useMemo(() => {
@@ -463,6 +487,11 @@ export function RotaPanel() {
       <details className="rounded-xl border border-line bg-surface p-3">
     <summary className="cursor-pointer list-none text-sm font-semibold">Compartilhar localização da corrida</summary>
     <p className="mt-1 text-xs text-muted">Gere um link para outra pessoa acompanhar sua posição enquanto o GPS estiver ativo.</p>
+    <label className="mt-3 block text-xs font-semibold text-muted">
+      MENSAGEM QUE APARECERÁ NO ACOMPANHAMENTO
+      <textarea value={trackingMessage} onChange={(event) => setTrackingMessage(event.target.value)} maxLength={300} rows={3} placeholder="Escreva sua mensagem para o cliente…" className="mt-2 w-full resize-y rounded-xl border border-line bg-bg p-3 text-sm font-normal text-paper outline-none focus:border-signal" />
+    </label>
+    <p className="mt-1 text-xs text-muted">A mensagem fica salva neste aparelho e será usada nos próximos links até você alterá-la.</p>
     {shareLink ? (
       <div className="mt-3 space-y-2">
         <p className="break-all rounded-xl bg-black/20 p-2 text-xs text-signal">{shareLink}</p>
@@ -481,7 +510,7 @@ export function RotaPanel() {
         setShareBusy(true);
         try {
           const share = await createLiveShare(run.id);
-          const url = trackingUrl(share.token);
+          const url = trackingUrl(share.token, trackingMessage);
           const value = { id: share.id, token: share.token, corridaId: run.id };
           localStorage.setItem("circuito-live-share", JSON.stringify(value));
           setShareLink(url.toString());
@@ -526,7 +555,7 @@ export function RotaPanel() {
                     token = await createPermanentLiveShare();
                   }
                   localStorage.setItem("circuito-permanent-share-token", token);
-                  setPermanentLink(trackingUrl(token));
+                  setPermanentLink(trackingUrl(token, trackingMessage));
                 } catch (error) {
                   window.alert(error instanceof Error ? error.message : "Não foi possível gerar um novo link.");
                 } finally { setPermanentBusy(false); }
