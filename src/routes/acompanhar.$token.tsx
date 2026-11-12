@@ -55,6 +55,9 @@ function PublicTracking() {
   const [tracking, setTracking] = useState<TrackingData | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const trackingMessage = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("mensagem")?.trim() || ""
+    : "";
 
   useEffect(() => {
     let alive = true;
@@ -85,6 +88,7 @@ function PublicTracking() {
       <main className="min-h-dvh bg-[#07110c] px-4 py-6 text-white">
         <div className="mx-auto max-w-2xl">
           <Header />
+          {trackingMessage ? <TrackingNotice message={trackingMessage} /> : null}
           {loading ? <p className="rounded-2xl bg-white/5 p-4 text-sm text-white/70">Buscando localização…</p> : null}
           {error ? <Message>{error}</Message> : null}
           {!data.active ? <Finished /> : null}
@@ -117,6 +121,7 @@ function PublicTracking() {
     <main className="min-h-dvh bg-[#07110c] px-4 py-6 text-white">
       <div className="mx-auto max-w-2xl">
         <Header />
+        {trackingMessage ? <TrackingNotice message={trackingMessage} /> : null}
         {loading ? <p className="rounded-2xl bg-white/5 p-4 text-sm text-white/70">Carregando acompanhamento…</p> : null}
         {error ? <Message>{error}</Message> : null}
         {!data || data.status === "idle" || data.status === "delivered" ? (
@@ -147,6 +152,15 @@ function PublicTracking() {
         <p className="mt-6 text-center text-xs text-white/35">A localização só é atualizada enquanto o GPS e o compartilhamento estiverem ativos.</p>
       </div>
     </main>
+  );
+}
+
+function TrackingNotice({ message }: { message: string }) {
+  return (
+    <section className="mb-4 rounded-2xl border border-[#b8f36b]/30 bg-[#101c16] p-4">
+      <p className="text-xs font-semibold tracking-wider text-[#b8f36b]">MENSAGEM DO ENTREGADOR</p>
+      <p className="mt-2 whitespace-pre-wrap text-base leading-relaxed text-white">{message}</p>
+    </section>
   );
 }
 
