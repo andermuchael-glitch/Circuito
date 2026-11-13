@@ -268,8 +268,9 @@ function simulationStops(state: Store): LatLng[] {
     .filter((item): item is Comanda & { lat: number; lng: number } => Boolean(item && comPin(item)));
   if (!pendentes.length) return [];
   const last = ativa.points[ativa.points.length - 1] ?? partida(state);
-  const home = state.base ?? (state.gaze ? { ...state.gaze, endereco: "Sua posição (GPS)" } : null);
-  return home ? [last, ...pendentes, home] : [last, ...pendentes];
+  // A base nunca deve virar destino sozinha: primeiro vêm as entregas pendentes.
+  // O retorno à base só é incluído quando há uma corrida com entregas.
+  return [last, ...pendentes, ...(state.base ? [state.base] : [])];
 }
 
 export const useDelivery = create<Store>()(
@@ -482,6 +483,7 @@ export const useDelivery = create<Store>()(
           fitToken: get().fitToken + 1,
           follow: true,
           previewIds: [],
+          searchDestination: null,
           gpsError: null,
           nearId: null,
         });
