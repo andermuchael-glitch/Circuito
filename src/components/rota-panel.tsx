@@ -4,6 +4,7 @@ import { GhostButton, PrimaryButton } from "@/components/bits";
 import { payName } from "@/lib/labels";
 
 import { comPin, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
+import { useCurrentUser } from "@/lib/auth/use-current-user";
 import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, waLink, wazeLink } from "@/lib/format";
 import { haversine, optimizeOrder, straightKm } from "@/lib/geo";
 import { holdScreen } from "@/lib/screen";
@@ -31,6 +32,7 @@ function trackingUrl(token: string, message = savedTrackingMessage()): string {
 }
 
 export function RotaPanel() {
+  const user = useCurrentUser();
   const comandas = useDelivery((state) => state.comandas);
   const ativaId = useDelivery((state) => state.ativaId);
   const corridas = useDelivery((state) => state.corridas);
@@ -65,6 +67,30 @@ export function RotaPanel() {
   });
   const [permanentBusy, setPermanentBusy] = useState(false);
   const lastSpokenCue = useRef("");
+  const loadedBaseOwner = useRef<string | null>(null);
+
+  // A base é guardada separadamente por usuário neste aparelho, nunca como padrão global.
+  useEffect(() => {
+    if (!user?.id) return;
+    const key = `route377-user-base:${user.id}`;
+    try {
+      const raw = localStorage.getItem(key);
+      const saved = raw ? JSON.parse(raw) as { lat: number; lng: number; endereco: string } : null;
+      useDelivery.getState().setBase(saved && Number.isFinite(saved.lat) && Number.isFinite(saved.lng) ? saved : null);
+    } catch {
+      useDelivery.getState().setBase(null);
+    }
+    loadedBaseOwner.current = user.id;
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || loadedBaseOwner.current !== user.id) return;
+    try {
+      const key = `route377-user-base:${user.id}`;
+      if (base) localStorage.setItem(key, JSON.stringify(base));
+      else localStorage.removeItem(key);
+    } catch { /* armazenamento local opcional */ }
+  }, [base, user?.id]);
 
   useEffect(() => {
     try { localStorage.setItem(TRACKING_MESSAGE_KEY, trackingMessage); } catch { /* preferência opcional */ }
@@ -127,10 +153,10 @@ export function RotaPanel() {
       const start = gaze ?? last ?? origin;
       // Sem entregas pendentes, a navegação continua até a base.
       if (!pending.length) return base ? [start, base] : [];
-      return [start, ...pending, base ?? origin];
+      return [start, ...pending, ...(base ? [base] : [])];
     }
     if (!selected.length) return [];
-    return [origin, ...selected, base ?? origin];
+    return [origin, ...selected, ...(base ? [base] : [])];
   }, [
     run,
     searchDestination,
@@ -255,7 +281,7 @@ export function RotaPanel() {
       <div className="scroll h-full min-h-0 overflow-y-auto px-4 py-4">
         <h1 className="font-display text-3xl leading-none tracking-wide">ROTA</h1>
         <p className="mt-1 text-sm text-muted">
-          A rota sai da {origin.endereco}, passa nas entregas e volta para a base. As ruas abrem no Waze ou no Google Maps.
+          {base ? `A rota sai da ${origin.endereco}, passa nas entregas e volta para a sua base.` : "Defina sua base usando o botão de casa no mapa. Sem uma base cadastrada, a rota usa sua posição GPS como ponto de partida."} As ruas abrem no Waze ou no Google Maps.
         </p>
 
         <section className={cn(
