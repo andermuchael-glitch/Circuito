@@ -68,9 +68,12 @@ export function RotaPanel() {
   const [permanentBusy, setPermanentBusy] = useState(false);
   const lastSpokenCue = useRef("");
   const loadedBaseOwner = useRef<string | null>(null);
+  const [baseReady, setBaseReady] = useState(false);
 
   // A base é guardada separadamente por usuário neste aparelho, nunca como padrão global.
   useEffect(() => {
+    loadedBaseOwner.current = null;
+    setBaseReady(false);
     if (!user?.id) return;
     const key = `route377-user-base:${user.id}`;
     try {
@@ -81,16 +84,17 @@ export function RotaPanel() {
       useDelivery.getState().setBase(null);
     }
     loadedBaseOwner.current = user.id;
+    setBaseReady(true);
   }, [user?.id]);
 
   useEffect(() => {
-    if (!user?.id || loadedBaseOwner.current !== user.id) return;
+    if (!baseReady || !user?.id || loadedBaseOwner.current !== user.id) return;
     try {
       const key = `route377-user-base:${user.id}`;
       if (base) localStorage.setItem(key, JSON.stringify(base));
       else localStorage.removeItem(key);
     } catch { /* armazenamento local opcional */ }
-  }, [base, user?.id]);
+  }, [base, baseReady, user?.id]);
 
   useEffect(() => {
     try { localStorage.setItem(TRACKING_MESSAGE_KEY, trackingMessage); } catch { /* preferência opcional */ }
