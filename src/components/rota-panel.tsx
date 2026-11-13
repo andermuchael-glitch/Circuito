@@ -155,10 +155,11 @@ export function RotaPanel() {
         .filter((item): item is Comanda & { lat: number; lng: number } => Boolean(item && comPin(item)));
       const last = run.points[run.points.length - 1];
       const start = gaze ?? last ?? origin;
-      // Sem entregas pendentes, a navegação continua até a base.
-      if (!pending.length) return base ? [start, base] : [];
+      // Nunca iniciar uma navegação apenas para a base. Sem entregas, não há rota.
+      if (!pending.length) return [];
       return [start, ...pending, ...(base ? [base] : [])];
     }
+    // A prévia mostra somente as comandas selecionadas; base não é destino automático.
     if (!selected.length) return [];
     return [origin, ...selected, ...(base ? [base] : [])];
   }, [
