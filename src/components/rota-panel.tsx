@@ -600,8 +600,18 @@ export function RotaPanel() {
           <p className="text-xs font-semibold tracking-wide text-muted">DESTINO</p>
           <p className="mt-1 font-semibold">{run.destino?.label}</p>
       <div className="mt-3 grid grid-cols-2 gap-2">
-            <a href={wazeLink(run.destino?.label ?? "")} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center rounded-full bg-signal text-sm font-semibold text-signal-ink">Waze</a>
-            <a href={googleStopLink(run.destino?.label ?? "")} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center justify-center rounded-full border border-line text-sm font-semibold">Google Maps</a>
+            <a
+              href={`https://www.waze.com/ul?ll=${run.destino.lat}%2C${run.destino.lng}&navigate=yes`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-signal text-sm font-semibold text-signal-ink"
+            >Waze</a>
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${run.destino.lat}%2C${run.destino.lng}&travelmode=driving`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-11 items-center justify-center rounded-full border border-line text-sm font-semibold"
+            >Google Maps</a>
           </div>
         </div>
       ) : null}
