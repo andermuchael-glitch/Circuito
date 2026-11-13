@@ -108,7 +108,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     setMapError("");
 
     const state = useDelivery.getState();
-    const initial = state.gaze ?? state.base ?? { lat: -26.9955, lng: -48.6432 };
+    const initial = state.gaze ?? state.base ?? { lat: -14.235, lng: -51.925 };
     const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined;
     const style = mapboxToken
       ? "https://api.mapbox.com/styles/v1/mapbox/" + (darkStyle ? "dark-v11" : "light-v11") + "?access_token=" + encodeURIComponent(mapboxToken)
