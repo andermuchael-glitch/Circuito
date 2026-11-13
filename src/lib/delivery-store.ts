@@ -117,25 +117,14 @@ function compactTrack(points: TrackPoint[], maxPoints = 300): TrackPoint[] {
 
 export type BasePin = { lat: number; lng: number; endereco: string };
 
-export const BASE_HOME: BasePin = {
-  lat: -26.99555,
-  lng: -48.64318,
-  endereco: "Rua 904, 1015",
-};
-
-export function isDefaultBase(base: BasePin | null) {
-  if (!base) return true;
-  return Math.abs(base.lat - BASE_HOME.lat) < 0.0002 && Math.abs(base.lng - BASE_HOME.lng) < 0.0002;
+export function partida(state: { base: BasePin | null; gaze: { lat: number; lng: number } | null }): BasePin {
+  if (state.base) return state.base;
+  if (state.gaze) return { lat: state.gaze.lat, lng: state.gaze.lng, endereco: "Sua posição (GPS)" };
+  return { lat: 0, lng: 0, endereco: "Defina sua base" };
 }
 
 function seed(): Persisted {
-  return { comandas: [], corridas: [], ativaId: null, tab: "comandas", seq: 1000, base: BASE_HOME, arrancadas: {} };
-}
-
-export function partida(state: { base: BasePin | null; gaze: { lat: number; lng: number } | null }): BasePin {
-  if (state.base) return state.base;
-  if (state.gaze) return { lat: state.gaze.lat, lng: state.gaze.lng, endereco: "Sua posição" };
-  return BASE_HOME;
+  return { comandas: [], corridas: [], ativaId: null, tab: "comandas", seq: 1000, base: null, arrancadas: {} };
 }
 
 export function comPin(item: Comanda): item is Comanda & { lat: number; lng: number } {
@@ -279,8 +268,8 @@ function simulationStops(state: Store): LatLng[] {
     .filter((item): item is Comanda & { lat: number; lng: number } => Boolean(item && comPin(item)));
   if (!pendentes.length) return [];
   const last = ativa.points[ativa.points.length - 1] ?? partida(state);
-  const home = state.base ?? BASE_HOME;
-  return [last, ...pendentes, home];
+  const home = state.base ?? (state.gaze ? { ...state.gaze, endereco: "Sua posição (GPS)" } : null);
+  return home ? [last, ...pendentes, home] : [last, ...pendentes];
 }
 
 export const useDelivery = create<Store>()(
@@ -653,7 +642,7 @@ export const useDelivery = create<Store>()(
           toast.error("Espere a seta do GPS aparecer.");
           return;
         }
-        set({ base: { lat: gaze.lat, lng: gaze.lng, endereco: BASE_HOME.endereco } });
+        set({ base: { lat: gaze.lat, lng: gaze.lng, endereco: "Minha base (GPS)" } });
         toast.success("Base colocada na seta.");
       },
       setPreview: (previewIds) =>
@@ -690,7 +679,6 @@ export const useDelivery = create<Store>()(
         ativaId: state.ativaId,
         tab: state.tab,
         seq: state.seq,
-        base: state.base,
         arrancadas: state.arrancadas,
       }),
       onRehydrateStorage: () => (_state, error) => {
@@ -708,7 +696,7 @@ export const useDelivery = create<Store>()(
           hydrated: true,
           corridas,
           tab: state.tab === "mapa" ? "comandas" : state.tab,
-          base: state.base?.endereco === BASE_HOME.endereco ? state.base : BASE_HOME,
+          base: null,
           arrancadas: state.arrancadas ?? {},
           mapPick: false,
           draft: null,
