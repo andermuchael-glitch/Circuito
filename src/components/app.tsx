@@ -33,7 +33,6 @@ export function App() {
 
   return (
     <div className="app-shell relative flex h-dvh flex-col bg-bg text-paper">
-      <CloudDataSync />
       <LiveEngine />
       <RouteEngine />
       <Toaster
@@ -48,6 +47,7 @@ export function App() {
         }}
       />
       <Header />
+      <CloudDataSync />
       <div className="hidden shrink-0 md:block"><NavigationTabs /></div>
       <main className="min-h-0 flex-1">
         <Panel />
