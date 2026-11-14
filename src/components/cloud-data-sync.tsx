@@ -49,6 +49,7 @@ export function CloudDataSync() {
   const hideTimer = useRef<number | undefined>(undefined);
   const saveTimer = useRef<number | undefined>(undefined);
   const busy = useRef(false);
+  const readyRef = useRef(false);
   const switching = useRef(false);
   const alive = useRef(true);
 
@@ -56,7 +57,7 @@ export function CloudDataSync() {
   const updateActive = (id: string) => { activeRef.current = id; setActiveId(id); };
 
   const saveCloud = async () => {
-    if (!ready || busy.current || !alive.current || switching.current) return;
+    if (!readyRef.current || busy.current || !alive.current || switching.current) return;
     busy.current = true;
     try {
       const current = profilesRef.current.map(p => p.id === activeRef.current ? { ...p, data: readCurrent() } : p);
@@ -106,6 +107,7 @@ export function CloudDataSync() {
         profilesRef.current = loaded; activeRef.current = selected;
         setProfiles(loaded); setActiveId(selected);
         applyData(loaded.find(p => p.id === selected)!.data);
+        readyRef.current = true;
         setReady(true);
         await saveCloud();
       } catch (e) {
@@ -114,11 +116,11 @@ export function CloudDataSync() {
     };
     void initialize();
     unsubscribe = useDelivery.subscribe(() => {
-      if (!ready || !alive.current || switching.current) return;
+      if (!readyRef.current || !alive.current || switching.current) return;
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
       saveTimer.current = window.setTimeout(() => void saveCloud(), 1600);
     });
-    const onOnline = () => { if (ready) void saveCloud(); };
+    const onOnline = () => { if (readyRef.current) void saveCloud(); };
     window.addEventListener("online", onOnline);
     return () => {
       alive.current = false; unsubscribe?.(); window.removeEventListener("online", onOnline);
