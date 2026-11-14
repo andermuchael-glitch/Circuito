@@ -117,6 +117,13 @@ function compactTrack(points: TrackPoint[], maxPoints = 300): TrackPoint[] {
 
 export type BasePin = { lat: number; lng: number; endereco: string };
 
+// Compatibilidade com o motor GPS: não representa mais um endereço fixo.
+// A base real só existe depois que o usuário a define ou o GPS a registra.
+export const BASE_HOME: BasePin = { lat: 0, lng: 0, endereco: "Minha base" };
+export function isDefaultBase(base: BasePin | null | undefined) {
+  return !base;
+}
+
 export function partida(state: { base: BasePin | null; gaze: { lat: number; lng: number } | null }): BasePin {
   if (state.base) return state.base;
   if (state.gaze) return { lat: state.gaze.lat, lng: state.gaze.lng, endereco: "Sua posição (GPS)" };
