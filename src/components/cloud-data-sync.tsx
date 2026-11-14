@@ -170,14 +170,14 @@ export function CloudDataSync() {
 
   if (!ready && !failed) return <div role="status" className="absolute inset-0 z-[100] grid place-items-center bg-[#07110c] px-6 text-center text-white"><div><p className="text-lg font-semibold">ROUTE377</p><p className="mt-2 text-sm text-white/65">{status}</p></div></div>;
   return <>
-    {ready && <div className="absolute left-3 top-[4.4rem] z-40 flex max-w-[58vw] items-center gap-1 rounded-full border border-line bg-surface/95 px-2 py-1 shadow-lg">
+    {ready && <div className="flex w-full shrink-0 items-center px-3 py-2"><div className="flex max-w-[58vw] items-center gap-1 rounded-full border border-line bg-surface/95 px-2 py-1 shadow-lg">
       <Store className="h-4 w-4 shrink-0 text-signal" />
       <select aria-label="Escolher estabelecimento" value={activeId} onChange={e => void switchProfile(e.target.value)} className="w-[min(34vw,8.5rem)] min-w-0 truncate bg-transparent px-0.5 py-1 text-[11px] font-semibold text-paper outline-none">
         {profiles.map(p => <option key={p.id} value={p.id} className="bg-[#102018]">{p.name}</option>)}
       </select>
       <button type="button" onClick={() => void renameProfile()} className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted hover:bg-white/10 hover:text-paper" aria-label="Renomear estabelecimento selecionado" title="Renomear estabelecimento"><Pencil className="h-3.5 w-3.5" /></button>
       <button type="button" onClick={() => void createProfile()} className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-signal text-signal-ink" aria-label="Adicionar estabelecimento" title="Adicionar estabelecimento"><Plus className="h-4 w-4" /></button>
-    </div>}
+    </div></div>}
     {status && <div role={failed ? "alert" : "status"} className="pointer-events-none absolute bottom-20 right-3 z-30"><span className={`rounded-full border px-2.5 py-1 text-[10px] shadow-lg ${failed ? "border-amber-400/40 bg-amber-950/90 text-amber-200" : "border-emerald-400/30 bg-emerald-950/90 text-emerald-200"}`}>{status}</span></div>}
   </>;
 }
