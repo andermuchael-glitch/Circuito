@@ -82,7 +82,29 @@ function browserStorage() {
     getItem: (name: string) => localStorage.getItem(name),
     setItem: (name: string, value: string) => {
       if (!persistReady) return;
-      localStorage.setItem(name, value);
+      try {
+        localStorage.setItem(name, value);
+      } catch (error) {
+        // Se o WebView estiver perto do limite de armazenamento, tenta salvar
+        // uma trilha visual menor. Quilometragem, comandas e histórico permanecem.
+        try {
+          const parsed = JSON.parse(value) as { state?: { corridas?: Array<Record<string, unknown>> } };
+          const corridas = parsed.state?.corridas;
+          if (!Array.isArray(corridas)) throw error;
+          parsed.state!.corridas = corridas.map((corrida) => {
+            const points = Array.isArray(corrida.points) ? corrida.points : [];
+            const limit = corrida.status === "ativa" ? 180 : 30;
+            const sampled = points.length <= limit ? points : Array.from({ length: limit }, (_, index) =>
+              points[Math.round(index * (points.length - 1) / (limit - 1))],
+            );
+            return { ...corrida, points: sampled };
+          });
+          localStorage.setItem(name, JSON.stringify(parsed));
+        } catch (retryError) {
+          console.error("[Route377] Não foi possível persistir os dados localmente", retryError);
+          // Não deixa uma falha de armazenamento interromper o encerramento da corrida.
+        }
+      }
     },
     removeItem: (name: string) => localStorage.removeItem(name),
   };
