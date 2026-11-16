@@ -325,7 +325,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         const speed = state.gpsMeta.speed;
         if (moved >= 30 && (speed == null || speed >= 8)) {
           const measuredHeading = bearing(previous, current);
-          headingRef.current = smoothAngle(headingRef.current, measuredHeading, 0.5);
+          headingRef.current = smoothAngle(headingRef.current, measuredHeading, 0.28);
         }
       }
       previousPosition.current = current;
@@ -365,10 +365,10 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       const bearingDelta = Math.abs(((wantBearing - map.getBearing() + 540) % 360) - 180);
       map.easeTo({
         center: [current.lng, current.lat],
-        zoom: Math.min(map.getZoom(), 14.52),
+        zoom: Math.min(Math.max(map.getZoom(), 15.0), 15.0),
         pitch: 0,
         bearing: bearingDelta >= 30 ? wantBearing : map.getBearing(),
-        offset: [0, navigating ? 70 : 0],
+        offset: [0, navigating ? 105 : 0],
         duration: 900,
       });
     }
