@@ -83,6 +83,16 @@ public class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(false);
         web.setWebViewClient(new WebViewClient() {
             @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                return openExternalNavigation(url);
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+                return openExternalNavigation(request.getUrl().toString());
+            }
+
+            @Override
             public void onPageFinished(WebView view, String url) {
                 markNativeInsets();
             }
@@ -96,6 +106,47 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new ScreenBridge(), "Circuito");
         web.loadUrl(START);
         registerLocationReceiver();
+    }
+
+    // Open Google Maps/Waze outside the WebView. Android WebView cannot render intent:// URLs.
+    private boolean openExternalNavigation(String rawUrl) {
+        if (rawUrl == null) return false;
+        String lower = rawUrl.toLowerCase(java.util.Locale.ROOT);
+        boolean google = lower.contains("google.com/maps") || lower.contains("maps.google.");
+        boolean waze = lower.contains("waze.com");
+        boolean intentUrl = lower.startsWith("intent://");
+
+        if (!google && !waze && !intentUrl) return false;
+
+        try {
+            Intent external;
+            if (intentUrl) {
+                external = Intent.parseUri(rawUrl, Intent.URI_INTENT_SCHEME);
+            } else {
+                external = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(rawUrl));
+            }
+
+            if (google) external.setPackage("com.google.android.apps.maps");
+            else if (waze) external.setPackage("com.waze");
+
+            try {
+                startActivity(external);
+            } catch (Exception appNotInstalled) {
+                String fallback = null;
+                if (intentUrl) {
+                    Intent parsed = Intent.parseUri(rawUrl, Intent.URI_INTENT_SCHEME);
+                    fallback = parsed.getStringExtra("browser_fallback_url");
+                    if (fallback == null && parsed.getData() != null) fallback = parsed.getData().toString();
+                } else {
+                    fallback = rawUrl;
+                }
+                if (fallback == null || fallback.isEmpty()) return true;
+                startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(fallback)));
+            }
+        } catch (Exception ignored) {
+            // Keep navigation inside the app if Android cannot resolve the external link.
+        }
+        return true;
     }
 
     private void requestLocationPermissions() {
