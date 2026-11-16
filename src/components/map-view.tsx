@@ -140,7 +140,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           container: host,
           style,
           center: [initial.lng, initial.lat],
-          zoom: 17.2,
+          zoom: 15.4,
           pitch: 0,
           bearing: 0,
           maxZoom: 20,
@@ -153,8 +153,6 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
 
         map.once("load", () => {
           if (disposed || !map) return;
-          map.setBearing(headingRef.current);
-          map.setPitch(28);
 
           if (mapboxToken) {
             for (const layer of map.getStyle().layers) {
@@ -324,10 +322,10 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       const previous = previousPosition.current;
       if (previous) {
         const moved = distanceMeters(previous, current);
-        // Atualiza a direção apenas após deslocamento consistente, evitando ruído do GPS.
-        if (moved >= 8) {
+        const speed = state.gpsMeta.speed;
+        if (moved >= 30 && (speed == null || speed >= 8)) {
           const measuredHeading = bearing(previous, current);
-          headingRef.current = smoothAngle(headingRef.current, measuredHeading, moved >= 20 ? 0.24 : 0.12);
+          headingRef.current = smoothAngle(headingRef.current, measuredHeading, 0.5);
         }
       }
       previousPosition.current = current;
@@ -348,24 +346,31 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     if (state.fitToken !== fitted.current) {
       fitted.current = state.fitToken;
       lastCameraPosition.current = current;
-      if (current) map.easeTo({ center: [current.lng, current.lat], zoom: 17.2, pitch: navigating ? 28 : 0, bearing: navigating ? headingRef.current : 0, offset: [0, navigating ? 135 : 90], duration: 650 });
-    } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
-      // A câmera só acompanha após 12 m de deslocamento real. Isso evita que
-      // oscilações de precisão do GPS reiniciem a animação continuamente.
-      const cameraPrevious = lastCameraPosition.current;
-      const cameraMoved = cameraPrevious ? distanceMeters(cameraPrevious, current) : 999;
-      if (!cameraPrevious || cameraMoved >= 12) {
-        lastCameraPosition.current = current;
+      if (current) {
         map.easeTo({
           center: [current.lng, current.lat],
-          zoom: Math.min(Math.max(map.getZoom(), 16.8), 17.3),
-          pitch: navigating ? 28 : 0,
-          bearing: navigating ? headingRef.current : 0,
-          offset: [0, navigating ? 135 : 95],
-          duration: 650,
-          essential: true,
+          zoom: 15.4,
+          pitch: 0,
+          bearing: 0,
+          offset: [0, 40],
+          duration: 700,
         });
       }
+    } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
+      const cameraPrevious = lastCameraPosition.current;
+      const cameraMoved = cameraPrevious ? distanceMeters(cameraPrevious, current) : 999;
+      if (map.isMoving() || (cameraPrevious && cameraMoved < 35)) return;
+      lastCameraPosition.current = current;
+      const wantBearing = navigating ? headingRef.current : 0;
+      const bearingDelta = Math.abs(((wantBearing - map.getBearing() + 540) % 360) - 180);
+      map.easeTo({
+        center: [current.lng, current.lat],
+        zoom: map.getZoom() > 16 ? 15.4 : map.getZoom(),
+        pitch: 0,
+        bearing: bearingDelta >= 30 ? wantBearing : map.getBearing(),
+        offset: [0, navigating ? 70 : 0],
+        duration: 900,
+      });
     }
   }, [ready, tick, tab, navigating]);
 
@@ -426,7 +431,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       rememberAddressPin(hit.label, { lat: point.lat, lng: point.lng }, corrected.label);
       useDelivery.getState().setSearchDestination(corrected);
     });
-    map.easeTo({ center: [hit.lng, hit.lat], zoom: 17.2, pitch: 0, bearing: 0, duration: 900 });
+    map.easeTo({ center: [hit.lng, hit.lat], zoom: 16, pitch: 0, bearing: 0, duration: 900 });
   }
 
   function locate() {
@@ -463,10 +468,10 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         if (map) {
           map.easeTo({
             center: [point.lng, point.lat],
-            zoom: 18,
-            pitch: navigating ? 28 : 0,
-            bearing: navigating ? headingRef.current : 0,
-            offset: [0, navigating ? 135 : 80],
+            zoom: 15.6,
+            pitch: 0,
+            bearing: 0,
+            offset: [0, 0],
             duration: 900,
           });
         }
