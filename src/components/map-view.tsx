@@ -140,7 +140,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           container: host,
           style,
           center: [initial.lng, initial.lat],
-          zoom: 13.8,
+          zoom: 14.12,
           pitch: 0,
           bearing: 0,
           maxZoom: 20,
@@ -349,7 +349,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       if (current) {
         map.easeTo({
           center: [current.lng, current.lat],
-          zoom: 13.8,
+          zoom: 14.12,
           pitch: 0,
           bearing: 0,
           offset: [0, 40],
@@ -365,7 +365,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       const bearingDelta = Math.abs(((wantBearing - map.getBearing() + 540) % 360) - 180);
       map.easeTo({
         center: [current.lng, current.lat],
-        zoom: Math.min(map.getZoom(), 14.2),
+        zoom: Math.min(map.getZoom(), 14.52),
         pitch: 0,
         bearing: bearingDelta >= 30 ? wantBearing : map.getBearing(),
         offset: [0, navigating ? 70 : 0],
@@ -431,7 +431,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       rememberAddressPin(hit.label, { lat: point.lat, lng: point.lng }, corrected.label);
       useDelivery.getState().setSearchDestination(corrected);
     });
-    map.easeTo({ center: [hit.lng, hit.lat], zoom: 14.2, pitch: 0, bearing: 0, duration: 900 });
+    map.easeTo({ center: [hit.lng, hit.lat], zoom: 14.52, pitch: 0, bearing: 0, duration: 900 });
   }
 
   function locate() {
@@ -468,7 +468,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         if (map) {
           map.easeTo({
             center: [point.lng, point.lat],
-            zoom: 14.0,
+            zoom: 14.32,
             pitch: 0,
             bearing: 0,
             offset: [0, 0],
@@ -567,7 +567,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           if (points.length > 1 && mapRef.current) {
             const bounds = new maplibregl.LngLatBounds();
             points.forEach((point) => bounds.extend([point.lng, point.lat]));
-            mapRef.current.fitBounds(bounds, { padding: 110, maxZoom: 14.5, duration: 700 });
+            mapRef.current.fitBounds(bounds, { padding: 110, maxZoom: 14.82, duration: 700 });
           } else useDelivery.getState().requestFit();
         }}><Maximize2 className="h-5 w-5" /></IconButton> : null}
         <IconButton label="Base aqui" onClick={() => useDelivery.getState().pinBaseHere()}><Home className="h-5 w-5" /></IconButton>
