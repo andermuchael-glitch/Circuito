@@ -632,16 +632,16 @@ export function RotaPanel() {
           <p className="mt-1 font-semibold">{run.destino?.label}</p>
       <div className="mt-3 grid grid-cols-2 gap-2">
             <a
-              href={`https://www.waze.com/ul?ll=${run.destino.lat}%2C${run.destino.lng}&navigate=yes`}
+              href={`https://waze.com/ul?ll=${run.destino.lat}%2C${run.destino.lng}&navigate=yes`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-11 items-center justify-center rounded-full bg-signal text-sm font-semibold text-signal-ink"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-[#25a8e0] text-sm font-semibold text-white shadow-sm"
             >Waze</a>
             <a
               href={`https://www.google.com/maps/dir/?api=1&destination=${run.destino.lat}%2C${run.destino.lng}&travelmode=driving`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-11 items-center justify-center rounded-full border border-line text-sm font-semibold"
+              className="inline-flex h-11 items-center justify-center rounded-full border border-[#4285f4]/50 bg-[#4285f4]/10 text-sm font-semibold text-paper"
             >Google Maps</a>
           </div>
         </div>
@@ -714,14 +714,18 @@ export function RotaPanel() {
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <a
                     href={wazeLink(item.endereco)}
-                    className="inline-flex h-11 items-center justify-center gap-1 rounded-full bg-signal text-sm font-semibold text-signal-ink"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-11 items-center justify-center gap-1 rounded-full bg-[#25a8e0] text-sm font-semibold text-white shadow-sm"
                   >
                     <Navigation className="h-4 w-4" />
                     Waze
                   </a>
                   <a
                     href={googleStopLink(item.endereco)}
-                    className="inline-flex h-11 items-center justify-center rounded-full border border-line text-sm font-semibold"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-11 items-center justify-center rounded-full border border-[#4285f4]/50 bg-[#4285f4]/10 text-sm font-semibold text-paper"
                   >
                     Google Maps
                   </a>
