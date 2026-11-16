@@ -819,25 +819,30 @@ export function RotaPanel() {
               onClick={() => {
                 if (ending) return;
                 setEnding(true);
-                const stored = (() => {
-                  try { return JSON.parse(localStorage.getItem("circuito-live-share") || "null") as { token?: string; corridaId?: string } | null; }
-                  catch { return null; }
-                })();
-                const permanentToken = (() => {
-                  try { return localStorage.getItem("circuito-permanent-share-token"); }
-                  catch { return null; }
-                })();
-                // Encerra localmente sem aguardar a rede para não travar o registro dos quilômetros.
-                useDelivery.getState().encerrar();
-                setConfirmEnd(false);
-                setEnding(false);
-                if (stored?.corridaId === run.id && stored.token) {
-                  void stopLiveShare(stored.token).catch((error) => console.warn("[Circuito] Falha ao encerrar link", error));
-                  try { localStorage.removeItem("circuito-live-share"); } catch { /* armazenamento opcional */ }
-                  setShareLink("");
-                }
-                if (permanentToken) {
-                  void publishPermanentLiveShare({ active: false, status: "idle", updated_at: new Date().toISOString() }).catch((error) => console.warn("[Circuito] Falha ao atualizar link permanente", error));
+                try {
+                  const stored = (() => {
+                    try { return JSON.parse(localStorage.getItem("circuito-live-share") || "null") as { token?: string; corridaId?: string } | null; }
+                    catch { return null; }
+                  })();
+                  const permanentToken = (() => {
+                    try { return localStorage.getItem("circuito-permanent-share-token"); }
+                    catch { return null; }
+                  })();
+                  // O encerramento e o registro dos km são locais; a rede é atualizada em segundo plano.
+                  useDelivery.getState().encerrar();
+                  setConfirmEnd(false);
+                  if (stored?.corridaId === run.id && stored.token) {
+                    void stopLiveShare(stored.token).catch((error) => console.warn("[Circuito] Falha ao encerrar link", error));
+                    try { localStorage.removeItem("circuito-live-share"); } catch { /* armazenamento opcional */ }
+                    setShareLink("");
+                  }
+                  if (permanentToken) {
+                    void publishPermanentLiveShare({ active: false, status: "idle", updated_at: new Date().toISOString() }).catch((error) => console.warn("[Circuito] Falha ao atualizar link permanente", error));
+                  }
+                } catch (error) {
+                  console.error("[Route377] Falha ao encerrar corrida", error);
+                } finally {
+                  setEnding(false);
                 }
               }}
               className="inline-flex h-12 items-center justify-center rounded-full bg-danger px-4 text-sm font-semibold text-ink"
