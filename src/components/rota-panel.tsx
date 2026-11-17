@@ -5,7 +5,7 @@ import { payName } from "@/lib/labels";
 
 import { comPin, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
-import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, openNavigationApp, waLink, wazeCoordLink, wazeLink } from "@/lib/format";
+import { duration, kmLabel, metersLabel, openNavigationApp, waLink } from "@/lib/format";
 import { haversine, optimizeOrder, straightKm } from "@/lib/geo";
 import { holdScreen } from "@/lib/screen";
 import { MapView } from "@/components/map-view";
