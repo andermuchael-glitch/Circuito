@@ -5,7 +5,7 @@ import { payName } from "@/lib/labels";
 
 import { comPin, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
-import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, waLink, wazeLink } from "@/lib/format";
+import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, waLink, wazeCoordLink, wazeLink } from "@/lib/format";
 import { haversine, optimizeOrder, straightKm } from "@/lib/geo";
 import { holdScreen } from "@/lib/screen";
 import { MapView } from "@/components/map-view";
@@ -632,15 +632,11 @@ export function RotaPanel() {
           <p className="mt-1 font-semibold">{run.destino?.label}</p>
       <div className="mt-3 grid grid-cols-2 gap-2">
             <a
-              href={`https://waze.com/ul?ll=${run.destino.lat}%2C${run.destino.lng}&navigate=yes`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={wazeCoordLink(run.destino.lat, run.destino.lng)}
               className="inline-flex h-11 items-center justify-center rounded-full bg-[#25a8e0] text-sm font-semibold text-white shadow-sm"
             >Waze</a>
             <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${run.destino.lat}%2C${run.destino.lng}&travelmode=driving`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={googleStopLink(`${run.destino.lat},${run.destino.lng}`)}
               className="inline-flex h-11 items-center justify-center rounded-full border border-[#4285f4]/50 bg-[#4285f4]/10 text-sm font-semibold text-paper"
             >Google Maps</a>
           </div>
@@ -714,8 +710,6 @@ export function RotaPanel() {
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <a
                     href={wazeLink(item.endereco)}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="inline-flex h-11 items-center justify-center gap-1 rounded-full bg-[#25a8e0] text-sm font-semibold text-white shadow-sm"
                   >
                     <Navigation className="h-4 w-4" />
@@ -723,8 +717,6 @@ export function RotaPanel() {
                   </a>
                   <a
                     href={googleStopLink(item.endereco)}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="inline-flex h-11 items-center justify-center rounded-full border border-[#4285f4]/50 bg-[#4285f4]/10 text-sm font-semibold text-paper"
                   >
                     Google Maps
