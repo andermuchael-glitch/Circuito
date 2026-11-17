@@ -101,3 +101,18 @@ export function googleRouteLink(_origin: string, stops: string[]) {
   if (orderedStops.length > 1) params.set("waypoints", orderedStops.slice(1).join("|"));
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
+
+type NavigationProvider = "google" | "waze";
+
+export function openNavigationApp(provider: NavigationProvider, destination: string) {
+  const clean = destination.trim();
+  if (!clean || typeof window === "undefined") return;
+  const bridge = (window as Window & { Circuito?: { openNavigation?: (app: string, target: string) => void } }).Circuito;
+  if (typeof bridge?.openNavigation === "function") {
+    bridge.openNavigation(provider, clean);
+    return;
+  }
+  const url = provider === "google" ? googleStopLink(clean) : wazeLink(clean);
+  // Navegadores comuns: abre o link universal fora da página atual.
+  window.open(url, "_blank", "noopener,noreferrer");
+}
