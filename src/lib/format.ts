@@ -74,7 +74,12 @@ export function withCity(endereco: string) {
 }
 
 export function wazeLink(endereco: string) {
-  return `https://waze.com/ul?q=${encodeURIComponent(withCity(endereco))}&navigate=yes&vehicle_type=motorcycle&utm_source=circuito`;
+  // Universal link oficial do Waze: o Android pode encaminhar para o app instalado.
+  return `https://www.waze.com/ul?q=${encodeURIComponent(endereco.trim())}&navigate=yes`;
+}
+
+export function wazeCoordLink(lat: number, lng: number) {
+  return `https://www.waze.com/ul?ll=${lat},${lng}&navigate=yes`;
 }
 
 export function googleStopLink(endereco: string) {
@@ -86,13 +91,13 @@ export function googleStopLink(endereco: string) {
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
 
-export function googleRouteLink(origin: string, stops: string[]) {
-  const params = new URLSearchParams({
-    api: "1",
-    travelmode: "driving",
-    origin: withCity(origin),
-    destination: withCity(origin),
-  });
-  if (stops.length) params.set("waypoints", stops.map(withCity).join("|"));
+export function googleRouteLink(_origin: string, stops: string[]) {
+  const orderedStops = stops.map((stop) => stop.trim()).filter(Boolean);
+  const destination = orderedStops[0];
+  if (!destination) return "https://www.google.com/maps";
+  const params = new URLSearchParams({ api: "1", destination, travelmode: "driving" });
+  // No celular, o Google Maps aceita melhor a primeira entrega como destino.
+  // As demais ficam como pontos intermediários, respeitando a ordem escolhida.
+  if (orderedStops.length > 1) params.set("waypoints", orderedStops.slice(1).join("|"));
   return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
