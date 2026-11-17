@@ -20,6 +20,8 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.Toast;
+import android.net.Uri;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -174,6 +176,42 @@ public class MainActivity extends Activity {
     }
 
     private final class ScreenBridge {
+        @JavascriptInterface
+        public void openNavigation(String provider, String destination) {
+            if (provider == null || destination == null || destination.trim().isEmpty()) return;
+            runOnUiThread(() -> {
+                try {
+                    String target = destination.trim();
+                    Intent intent;
+                    if ("google".equalsIgnoreCase(provider)) {
+                        Uri uri = Uri.parse("google.navigation:q=" + Uri.encode(target) + "&mode=d");
+                        intent = new Intent(Intent.ACTION_VIEW, uri);
+                        intent.setPackage("com.google.android.apps.maps");
+                    } else if ("waze".equalsIgnoreCase(provider)) {
+                        Uri uri;
+                        if (target.matches("-?\\d+(\\.\\d+)?\\s*,\\s*-?\\d+(\\.\\d+)?")) {
+                            String[] coords = target.split(",");
+                            uri = Uri.parse("waze://?ll=" + coords[0].trim() + "," + coords[1].trim() + "&navigate=yes");
+                        } else {
+                            uri = Uri.parse("waze://?q=" + Uri.encode(target) + "&navigate=yes");
+                        }
+                        intent = new Intent(Intent.ACTION_VIEW, uri);
+                        intent.setPackage("com.waze");
+                    } else {
+                        return;
+                    }
+                    try {
+                        startActivity(intent);
+                    } catch (Exception notInstalled) {
+                        String app = "google".equalsIgnoreCase(provider) ? "Google Maps" : "Waze";
+                        Toast.makeText(MainActivity.this, app + " não está instalado ou não pode ser aberto.", Toast.LENGTH_LONG).show();
+                    }
+                } catch (Exception error) {
+                    Toast.makeText(MainActivity.this, "Não foi possível abrir o aplicativo de navegação.", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+
         @JavascriptInterface
         public void stayOn(boolean on) {
             runOnUiThread(() -> {
