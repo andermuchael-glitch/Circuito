@@ -93,7 +93,7 @@ function browserStorage() {
           if (!Array.isArray(corridas)) throw error;
           parsed.state!.corridas = corridas.map((corrida) => {
             const points = Array.isArray(corrida.points) ? corrida.points : [];
-            const limit = corrida.status === "ativa" ? 180 : 30;
+            const limit = corrida.status === "ativa" ? 120 : 0;
             const sampled = points.length <= limit ? points : Array.from({ length: limit }, (_, index) =>
               points[Math.round(index * (points.length - 1) / (limit - 1))],
             );
@@ -705,7 +705,7 @@ export const useDelivery = create<Store>()(
         // O valor de km permanece intacto; apenas a trilha visual é resumida.
         corridas: state.corridas.map((item) => ({
           ...item,
-          points: compactTrack(item.points, item.status === "ativa" ? 500 : 240),
+          points: item.status === "ativa" ? compactTrack(item.points, 500) : compactTrack(item.points, 0),
         })),
         ativaId: state.ativaId,
         tab: state.tab,
