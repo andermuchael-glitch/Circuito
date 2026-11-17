@@ -184,8 +184,16 @@ public class MainActivity extends Activity {
                     String target = destination.trim();
                     Intent intent;
                     if ("google".equalsIgnoreCase(provider)) {
-                        Uri uri = Uri.parse("google.navigation:q=" + Uri.encode(target) + "&mode=d");
-                        intent = new Intent(Intent.ACTION_VIEW, uri);
+                        String[] stops = target.split("\\s*\\|\\s*");
+                        Uri.Builder builder = new Uri.Builder()
+                            .scheme("https").authority("www.google.com").path("/maps/dir/")
+                            .appendQueryParameter("api", "1")
+                            .appendQueryParameter("destination", stops[0])
+                            .appendQueryParameter("travelmode", "driving");
+                        if (stops.length > 1) {
+                            builder.appendQueryParameter("waypoints", String.join("|", java.util.Arrays.copyOfRange(stops, 1, stops.length)));
+                        }
+                        intent = new Intent(Intent.ACTION_VIEW, builder.build());
                         intent.setPackage("com.google.android.apps.maps");
                     } else if ("waze".equalsIgnoreCase(provider)) {
                         Uri uri;
