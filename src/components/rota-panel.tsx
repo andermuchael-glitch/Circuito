@@ -5,7 +5,7 @@ import { payName } from "@/lib/labels";
 
 import { comPin, nextStop, partida, useDelivery, type Comanda } from "@/lib/delivery-store";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
-import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, waLink, wazeCoordLink, wazeLink } from "@/lib/format";
+import { duration, googleRouteLink, googleStopLink, kmLabel, metersLabel, openNavigationApp, waLink, wazeCoordLink, wazeLink } from "@/lib/format";
 import { haversine, optimizeOrder, straightKm } from "@/lib/geo";
 import { holdScreen } from "@/lib/screen";
 import { MapView } from "@/components/map-view";
@@ -430,18 +430,12 @@ export function RotaPanel() {
           <div className="mt-4">
             <p className="mb-2 text-xs font-semibold tracking-wide text-muted">OU NAVEGUE COM OUTRO APLICATIVO</p>
             <div className="grid grid-cols-2 gap-2">
-            <a
-              href={wazeLink(selected[0].endereco)}
-              className="inline-flex h-12 items-center justify-center rounded-full border border-line text-sm font-semibold"
-            >
+            <button type="button" onClick={() => openNavigationApp("waze", selected[0].endereco)} className="inline-flex h-12 items-center justify-center rounded-full border border-line text-sm font-semibold">
               Waze · 1ª parada
-            </a>
-            <a
-              href={googleRouteLink(origin.endereco, selected.map((item) => item.endereco))}
-              className="inline-flex h-12 items-center justify-center rounded-full border border-line text-sm font-semibold"
-            >
+            </button>
+            <button type="button" onClick={() => openNavigationApp("google", selected.map((item) => item.endereco).join(" | "))} className="inline-flex h-12 items-center justify-center rounded-full border border-line text-sm font-semibold">
               Google Maps · rota completa
-            </a>
+            </button>
             </div>
           </div>
         ) : null}
@@ -631,14 +625,8 @@ export function RotaPanel() {
           <p className="text-xs font-semibold tracking-wide text-muted">DESTINO</p>
           <p className="mt-1 font-semibold">{run.destino?.label}</p>
       <div className="mt-3 grid grid-cols-2 gap-2">
-            <a
-              href={wazeCoordLink(run.destino.lat, run.destino.lng)}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-[#25a8e0] text-sm font-semibold text-white shadow-sm"
-            >Waze</a>
-            <a
-              href={googleStopLink(`${run.destino.lat},${run.destino.lng}`)}
-              className="inline-flex h-11 items-center justify-center rounded-full border border-[#4285f4]/50 bg-[#4285f4]/10 text-sm font-semibold text-paper"
-            >Google Maps</a>
+            <button type="button" onClick={() => openNavigationApp("waze", `${run.destino!.lat},${run.destino!.lng}`)} className="inline-flex h-11 items-center justify-center rounded-full bg-[#25a8e0] text-sm font-semibold text-white shadow-sm">Waze</button>
+            <button type="button" onClick={() => openNavigationApp("google", `${run.destino!.lat},${run.destino!.lng}`)} className="inline-flex h-11 items-center justify-center rounded-full border border-[#4285f4]/50 bg-[#4285f4]/10 text-sm font-semibold text-paper">Google Maps</button>
           </div>
         </div>
       ) : null}
@@ -708,19 +696,10 @@ export function RotaPanel() {
               </div> : null}
               {current ? (
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <a
-                    href={wazeLink(item.endereco)}
-                    className="inline-flex h-11 items-center justify-center gap-1 rounded-full bg-[#25a8e0] text-sm font-semibold text-white shadow-sm"
-                  >
-                    <Navigation className="h-4 w-4" />
-                    Waze
-                  </a>
-                  <a
-                    href={googleStopLink(item.endereco)}
-                    className="inline-flex h-11 items-center justify-center rounded-full border border-[#4285f4]/50 bg-[#4285f4]/10 text-sm font-semibold text-paper"
-                  >
-                    Google Maps
-                  </a>
+                  <button type="button" onClick={() => openNavigationApp("waze", item.endereco)} className="inline-flex h-11 items-center justify-center gap-1 rounded-full bg-[#25a8e0] text-sm font-semibold text-white shadow-sm">
+                    <Navigation className="h-4 w-4" /> Waze
+                  </button>
+                  <button type="button" onClick={() => openNavigationApp("google", item.endereco)} className="inline-flex h-11 items-center justify-center rounded-full border border-[#4285f4]/50 bg-[#4285f4]/10 text-sm font-semibold text-paper">Google Maps</button>
                   {waLink(item.telefone) ? (
                     <a
                       href={waLink(item.telefone) ?? "#"}
@@ -742,12 +721,9 @@ export function RotaPanel() {
       </details>
 
       {restantes.length > 0 ? (
-        <a
-          href={googleRouteLink(origin.endereco, restantes)}
-          className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-full border border-line text-sm font-semibold"
-        >
+        <button type="button" onClick={() => openNavigationApp("google", restantes.join(" | "))} className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-full border border-line text-sm font-semibold">
           Rota inteira no Google Maps
-        </a>
+        </button>
       ) : null}
 
       {destinationOnly ? (
