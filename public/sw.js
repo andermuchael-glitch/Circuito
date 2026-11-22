@@ -1,4 +1,4 @@
-const CACHE = "route377-v10";
+const CACHE = "route377-v11";
 const SCOPE = new URL("./", self.registration.scope).pathname;
 const SHELL = SCOPE;
 const MANIFEST = new URL("manifest.webmanifest", self.registration.scope).pathname;

@@ -7,7 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.ViewGroup;
@@ -98,6 +98,11 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 markNativeInsets();
             }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+                return openExternal(view, request.getUrl().toString());
+            }
         });
         web.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -110,43 +115,36 @@ public class MainActivity extends Activity {
         registerLocationReceiver();
     }
 
-    // Open Google Maps/Waze outside the WebView. Android WebView cannot render intent:// URLs.
-    private boolean openExternalNavigation(String rawUrl) {
-        if (rawUrl == null) return false;
-        String lower = rawUrl.toLowerCase(java.util.Locale.ROOT);
-        boolean google = lower.contains("google.com/maps") || lower.contains("maps.google.");
-        boolean waze = lower.contains("waze.com");
+    private boolean openExternal(WebView view, String url) {
+        if (url == null) return false;
+        String lower = url.toLowerCase(java.util.Locale.ROOT);
+        boolean google = lower.contains("google.com/maps") || lower.contains("maps.google.") || lower.startsWith("google.navigation:");
+        boolean waze = lower.contains("waze.com") || lower.startsWith("waze:");
         boolean intentUrl = lower.startsWith("intent://");
-
         if (!google && !waze && !intentUrl) return false;
-
         try {
-            Intent external;
-            if (intentUrl) {
-                external = Intent.parseUri(rawUrl, Intent.URI_INTENT_SCHEME);
-            } else {
-                external = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(rawUrl));
-            }
-
+            Intent external = intentUrl
+                    ? Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                    : new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             if (google) external.setPackage("com.google.android.apps.maps");
             else if (waze) external.setPackage("com.waze");
-
+            external.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             try {
                 startActivity(external);
             } catch (Exception appNotInstalled) {
-                String fallback = null;
+                String fallback = url;
                 if (intentUrl) {
-                    Intent parsed = Intent.parseUri(rawUrl, Intent.URI_INTENT_SCHEME);
-                    fallback = parsed.getStringExtra("browser_fallback_url");
-                    if (fallback == null && parsed.getData() != null) fallback = parsed.getData().toString();
-                } else {
-                    fallback = rawUrl;
+                    Intent parsed = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+                    if (parsed.getStringExtra("browser_fallback_url") != null) {
+                        fallback = parsed.getStringExtra("browser_fallback_url");
+                    }
                 }
-                if (fallback == null || fallback.isEmpty()) return true;
-                startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(fallback)));
+                Intent browser = new Intent(Intent.ACTION_VIEW, Uri.parse(fallback));
+                browser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(browser);
             }
         } catch (Exception ignored) {
-            // Keep navigation inside the app if Android cannot resolve the external link.
+            if (url.startsWith("http")) view.loadUrl(url);
         }
         return true;
     }
@@ -185,23 +183,26 @@ public class MainActivity extends Activity {
                     Intent intent;
                     if ("google".equalsIgnoreCase(provider)) {
                         String[] stops = target.split("\\s*\\|\\s*");
-                        Uri.Builder builder = new Uri.Builder()
-                            .scheme("https").authority("www.google.com").path("/maps/dir/")
-                            .appendQueryParameter("api", "1")
-                            .appendQueryParameter("destination", stops[0])
-                            .appendQueryParameter("travelmode", "driving");
+                        String dest = stops[0].trim();
                         if (stops.length > 1) {
-                            builder.appendQueryParameter("waypoints", String.join("|", java.util.Arrays.copyOfRange(stops, 1, stops.length)));
+                            Uri.Builder builder = new Uri.Builder()
+                                    .scheme("https").authority("www.google.com").path("/maps/dir/")
+                                    .appendQueryParameter("api", "1")
+                                    .appendQueryParameter("destination", dest)
+                                    .appendQueryParameter("travelmode", "driving")
+                                    .appendQueryParameter("waypoints", String.join("|", java.util.Arrays.copyOfRange(stops, 1, stops.length)));
+                            intent = new Intent(Intent.ACTION_VIEW, builder.build());
+                        } else {
+                            intent = new Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=" + Uri.encode(dest) + "&mode=d"));
                         }
-                        intent = new Intent(Intent.ACTION_VIEW, builder.build());
                         intent.setPackage("com.google.android.apps.maps");
                     } else if ("waze".equalsIgnoreCase(provider)) {
                         Uri uri;
                         if (target.matches("-?\\d+(\\.\\d+)?\\s*,\\s*-?\\d+(\\.\\d+)?")) {
                             String[] coords = target.split(",");
-                            uri = Uri.parse("waze://?ll=" + coords[0].trim() + "," + coords[1].trim() + "&navigate=yes");
+                            uri = Uri.parse("https://waze.com/ul?ll=" + coords[0].trim() + "," + coords[1].trim() + "&navigate=yes");
                         } else {
-                            uri = Uri.parse("waze://?q=" + Uri.encode(target) + "&navigate=yes");
+                            uri = Uri.parse("https://waze.com/ul?q=" + Uri.encode(target) + "&navigate=yes");
                         }
                         intent = new Intent(Intent.ACTION_VIEW, uri);
                         intent.setPackage("com.waze");

@@ -73,33 +73,57 @@ export function withCity(endereco: string) {
   return `${q}, Balneário Camboriú, SC`;
 }
 
+function androidDevice() {
+  return typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+}
+
+function androidIntent(httpsUrl: string, schemeUrl: string, packageName: string) {
+  if (!androidDevice()) return httpsUrl;
+  const splitAt = schemeUrl.indexOf(":");
+  const scheme = splitAt >= 0 ? schemeUrl.slice(0, splitAt) : "https";
+  let rest = splitAt >= 0 ? schemeUrl.slice(splitAt + 1) : schemeUrl;
+  if (rest.startsWith("//")) rest = rest.slice(2);
+  return `intent://${rest}#Intent;scheme=${scheme};package=${packageName};S.browser_fallback_url=${encodeURIComponent(httpsUrl)};end`;
+}
+
 export function wazeLink(endereco: string) {
-  // Universal link oficial do Waze: o Android pode encaminhar para o app instalado.
-  return `https://www.waze.com/ul?q=${encodeURIComponent(endereco.trim())}&navigate=yes`;
+  const q = withCity(endereco);
+  const https = `https://www.waze.com/ul?q=${encodeURIComponent(q)}&navigate=yes`;
+  return androidIntent(https, `waze://ul?q=${encodeURIComponent(q)}&navigate=yes`, "com.waze");
 }
 
 export function wazeCoordLink(lat: number, lng: number) {
-  return `https://www.waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+  const https = `https://www.waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+  return androidIntent(https, `waze://ul?ll=${lat},${lng}&navigate=yes`, "com.waze");
+}
+
+export function wazePointLink(lat: number, lng: number) {
+  return wazeCoordLink(lat, lng);
 }
 
 export function googleStopLink(endereco: string) {
-  const params = new URLSearchParams({
-    api: "1",
-    destination: withCity(endereco),
-    travelmode: "driving",
-  });
-  return `https://www.google.com/maps/dir/?${params.toString()}`;
+  const dest = withCity(endereco);
+  const https = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`;
+  return androidIntent(
+    https,
+    `google.navigation:q=${encodeURIComponent(dest)}&mode=d`,
+    "com.google.android.apps.maps",
+  );
+}
+
+export function googlePointLink(lat: number, lng: number) {
+  const https = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+  return androidIntent(https, `google.navigation:q=${lat},${lng}&mode=d`, "com.google.android.apps.maps");
 }
 
 export function googleRouteLink(_origin: string, stops: string[]) {
-  const orderedStops = stops.map((stop) => stop.trim()).filter(Boolean);
+  const orderedStops = stops.map((stop) => withCity(stop.trim())).filter(Boolean);
   const destination = orderedStops[0];
   if (!destination) return "https://www.google.com/maps";
   const params = new URLSearchParams({ api: "1", destination, travelmode: "driving" });
-  // No celular, o Google Maps aceita melhor a primeira entrega como destino.
-  // As demais ficam como pontos intermediários, respeitando a ordem escolhida.
   if (orderedStops.length > 1) params.set("waypoints", orderedStops.slice(1).join("|"));
-  return `https://www.google.com/maps/dir/?${params.toString()}`;
+  const https = `https://www.google.com/maps/dir/?${params.toString()}`;
+  return androidIntent(https, https, "com.google.android.apps.maps");
 }
 
 type NavigationProvider = "google" | "waze";
@@ -113,6 +137,5 @@ export function openNavigationApp(provider: NavigationProvider, destination: str
     return;
   }
   const url = provider === "google" ? googleStopLink(clean) : wazeLink(clean);
-  // Navegadores comuns: abre o link universal fora da página atual.
-  window.open(url, "_blank", "noopener,noreferrer");
+  window.location.href = url;
 }

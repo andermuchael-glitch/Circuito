@@ -23,7 +23,7 @@ function markerElement(label: string, kind: "rider" | "base" | "stop" | "done") 
   if (kind === "rider") {
     const symbol = document.createElement("span");
     symbol.setAttribute("aria-label", "Direção atual");
-    symbol.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 3 57 53 32 43 7 53 32 3Z" fill="#183322" opacity=".95"/><path d="M32 3 52 48 32 39 12 48 32 3Z" fill="#b7f34a" stroke="#102018" stroke-width="3" stroke-linejoin="round"/><path d="M32 12 43 40 32 35 21 40 32 12Z" fill="#102018"/><path d="M32 4v48" stroke="#ffffff" stroke-width="2" opacity=".8"/></svg>';
+    symbol.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#1a73e8"/><path d="M32 10 50 48 32 40 14 48 32 10Z" fill="#fff"/></svg>';
     el.appendChild(symbol);
   } else {
     el.textContent = label;
@@ -67,7 +67,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState("");
   const [mapRetry, setMapRetry] = useState(0);
-  const [darkStyle, setDarkStyle] = useState(true);
+  const [darkStyle, setDarkStyle] = useState(false);
   const trafficKey = import.meta.env.VITE_TOMTOM_API_KEY as string | undefined;
   const [trafficEnabled, setTrafficEnabled] = useState(false); // off by default to save API quota
   const [searchOpen, setSearchOpen] = useState(false);
@@ -111,28 +111,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
     const initial = state.gaze ?? state.base ?? { lat: -14.235, lng: -51.925 };
     const mapboxToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN as string | undefined;
     const style = mapboxToken
-      ? "https://api.mapbox.com/styles/v1/mapbox/" + (darkStyle ? "dark-v11" : "light-v11") + "?access_token=" + encodeURIComponent(mapboxToken)
-      : {
-          version: 8 as const,
-          sources: {
-            openstreetmap: {
-              type: "raster" as const,
-              tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-              tileSize: 256,
-              attribution: "© OpenStreetMap contributors",
-              maxzoom: 19,
-            },
-          },
-          layers: [
-            {
-              id: "openstreetmap-base",
-              type: "raster" as const,
-              source: "openstreetmap",
-              minzoom: 0,
-              maxzoom: 22,
-            },
-          ],
-        };
+      ? "https://api.mapbox.com/styles/v1/mapbox/" + (darkStyle ? "dark-v11" : "streets-v12") + "?access_token=" + encodeURIComponent(mapboxToken)
+      : "https://tiles.openfreemap.org/styles/" + (darkStyle ? "dark" : "bright");
 
     const startMap = async () => {
       try {
@@ -154,7 +134,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
         map.once("load", () => {
           if (disposed || !map) return;
 
-          if (mapboxToken) {
+          if (mapboxToken && darkStyle) {
             for (const layer of map.getStyle().layers) {
               const id = layer.id.toLowerCase();
               const sourceLayer = "source-layer" in layer ? String(layer["source-layer"] ?? "").toLowerCase() : "";
@@ -194,14 +174,14 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
             type: "line",
             source: "circuito-route",
             layout: { "line-cap": "round", "line-join": "round" },
-            paint: { "line-color": "#102018", "line-width": 12, "line-opacity": 0.88 },
+            paint: { "line-color": "#ffffff", "line-width": 12, "line-opacity": 0.95 },
           });
           map.addLayer({
             id: "circuito-route-line",
             type: "line",
             source: "circuito-route",
             layout: { "line-cap": "round", "line-join": "round" },
-            paint: { "line-color": "#b7f34a", "line-width": 7, "line-opacity": 1 },
+            paint: { "line-color": "#1a73e8", "line-width": 7, "line-opacity": 1 },
           });
           map.addSource("circuito-route-return", {
             type: "geojson",
@@ -322,8 +302,8 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       const previous = previousPosition.current;
       if (previous) {
         const moved = distanceMeters(previous, current);
-        const speed = state.gpsMeta.speed;
-        if (moved >= 30 && (speed == null || speed >= 8)) {
+        const speed = state.gpsMeta.speed ?? 0;
+        if (moved >= 18 && speed >= 6) {
           const measuredHeading = bearing(previous, current);
           headingRef.current = smoothAngle(headingRef.current, measuredHeading, 0.28);
         }
@@ -337,7 +317,7 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
       }
       // Durante a navegação, a moto permanece apontada para cima e o mapa gira
       // para alinhar a rua com o sentido real do deslocamento.
-      riderRef.current.setRotation(navigating ? 0 : headingRef.current);
+      riderRef.current.setRotation((state.gpsMeta.speed ?? 0) >= 6 ? 0 : headingRef.current);
     } else {
       riderRef.current?.remove();
       riderRef.current = null;
@@ -356,20 +336,23 @@ export function MapView({ navigating = false, destinationLabel, instruction, ins
           duration: 700,
         });
       }
-    } else if (state.follow && current && state.liveStatus === "ativo" && run?.modo === "gps") {
+    } else if (state.follow && current && state.liveStatus === "ativo") {
       const cameraPrevious = lastCameraPosition.current;
       const cameraMoved = cameraPrevious ? distanceMeters(cameraPrevious, current) : 999;
-      if (map.isMoving() || (cameraPrevious && cameraMoved < 35)) return;
+      if (cameraPrevious && cameraMoved < 18) return;
+      if (map.isMoving() && cameraMoved < 45) return;
       lastCameraPosition.current = current;
-      const wantBearing = navigating ? headingRef.current : 0;
+      const speed = state.gpsMeta.speed ?? 0;
+      const driving = speed >= 6;
+      const wantBearing = driving ? headingRef.current : 0;
       const bearingDelta = Math.abs(((wantBearing - map.getBearing() + 540) % 360) - 180);
       map.easeTo({
         center: [current.lng, current.lat],
-        zoom: Math.min(Math.max(map.getZoom(), 15.0), 15.0),
-        pitch: 0,
-        bearing: bearingDelta >= 30 ? wantBearing : map.getBearing(),
-        offset: [0, navigating ? 105 : 0],
-        duration: 900,
+        zoom: driving ? 15.6 : 14.6,
+        pitch: driving ? 42 : 0,
+        bearing: !driving || bearingDelta >= 18 ? wantBearing : map.getBearing(),
+        offset: [0, driving ? 140 : 0],
+        duration: 1100,
       });
     }
   }, [ready, tick, tab, navigating]);
