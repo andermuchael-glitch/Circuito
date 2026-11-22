@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -21,7 +22,6 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.Toast;
-import android.net.Uri;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -86,22 +86,17 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                return openExternalNavigation(url);
-            }
-
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
-                return openExternalNavigation(request.getUrl().toString());
-            }
-
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                markNativeInsets();
+                return openExternal(view, url);
             }
 
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
                 return openExternal(view, request.getUrl().toString());
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                markNativeInsets();
             }
         });
         web.setWebChromeClient(new WebChromeClient() {
